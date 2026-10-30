@@ -51,7 +51,8 @@ train:                      # M5, M6
   max_epochs: 200
   early_stopping_patience: 20
   learning_rate: 0.001
-  device: auto              # auto -> mps on Apple Silicon, else cpu
+  device: cpu               # cpu | mps | auto. Reported results always use cpu;
+                            # mps/auto are for quick local iteration only (not bit-for-bit reproducible)
 
 random_forest:              # M5 baseline
   n_estimators: 300

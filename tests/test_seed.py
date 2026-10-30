@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import torch
 
+from racketimu.config import load_config
 from racketimu.seed import get_device, set_seed
 
 
@@ -28,7 +29,20 @@ def test_invalid_seed_is_rejected(bad):
         set_seed(bad)
 
 
-def test_get_device_returns_a_usable_device():
+def test_default_device_is_cpu():
+    assert get_device().type == "cpu"
+
+
+def test_config_default_device_is_cpu():
+    assert load_config()["train"]["device"] == "cpu"
+
+
+def test_auto_device_is_usable():
     device = get_device("auto")
     assert device.type in {"mps", "cpu"}
     assert torch.zeros(2, device=device).sum().item() == 0
+
+
+def test_unknown_device_is_rejected():
+    with pytest.raises(ValueError):
+        get_device("cuda")

@@ -28,8 +28,21 @@ def set_seed(seed: int) -> np.random.Generator:
     return np.random.default_rng(seed)
 
 
-def get_device(preference: str = "auto") -> torch.device:
-    """Pick the torch device: "auto" uses Apple Silicon's MPS when available, else CPU."""
-    if preference == "auto":
-        return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    return torch.device(preference)
+DEVICES = ("cpu", "mps", "auto")
+
+
+def get_device(preference: str = "cpu") -> torch.device:
+    """Pick the torch device from the config's `train.device` value.
+
+    "cpu" (the default) is the only choice for reported experiments, because MPS
+    results are not bit-for-bit reproducible. "mps" and "auto" are opt-in for quick
+    local iteration; "auto" uses MPS when available, else CPU.
+    """
+    if preference not in DEVICES:
+        raise ValueError(f"device must be one of {DEVICES}, got {preference!r}")
+    mps_ok = torch.backends.mps.is_available()
+    if preference == "mps" and not mps_ok:
+        raise RuntimeError("device 'mps' was requested but MPS is not available here")
+    if preference == "mps" or (preference == "auto" and mps_ok):
+        return torch.device("mps")
+    return torch.device("cpu")
