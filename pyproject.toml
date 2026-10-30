@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "racketimu"
+version = "0.0.1"
+description = "Infer tennis strokes and wrist motion from a single racket-mounted IMU, evaluated against video pose."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [{ name = "Bhavishya Bondalapati" }]
+# Exact pins: these are the versions resolved together on macOS arm64 / Python 3.11
+# when the project was scaffolded. Change them deliberately, never implicitly.
+dependencies = [
+    "numpy==2.4.6",
+    "pandas==3.1.0",
+    "scipy==1.17.1",
+    "scikit-learn==1.9.1",
+    "torch==2.15.0",
+    "opencv-python==5.0.0.93",
+    "mediapipe==1.2.0",
+    "ahrs==0.4.0",
+    "matplotlib==3.11.2",
+    "pyyaml==6.0.3",
+    "pyarrow==26.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.2.0",
+    "ruff==0.17.3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+# E/F: pycodestyle + pyflakes, I: import order, UP: modern syntax, B: likely bugs
+select = ["E", "F", "I", "UP", "B"]

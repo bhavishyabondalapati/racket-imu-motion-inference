@@ -1,0 +1,50 @@
+# --- Data: never commit raw recordings or intermediate files ---
+data/raw/
+data/interim/
+
+# --- Video: contains other people's faces ---
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.avi
+*.mkv
+# Extracted audio used for sync
+*.wav
+
+# --- Model checkpoints ---
+# .gitignore cannot filter by size, so all checkpoint formats are ignored.
+# scripts/check_large_files.py (run by `make lint` and CI) also fails on any
+# tracked file over 5 MB, as a second line of defence.
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.joblib
+*.pkl
+# MediaPipe model bundles are downloaded, not committed
+*.task
+
+# --- Secrets ---
+.env
+
+# --- Environments ---
+venv/
+.venv/
+env/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# --- Notebooks / editors / OS ---
+.ipynb_checkpoints/
+.vscode/
+.idea/
+.DS_Store
