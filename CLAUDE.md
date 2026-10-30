@@ -150,6 +150,16 @@ sessions:
 - Metrics: mean per-point error in shoulder-width units, error at the impact point, and per-class and per-player breakdowns, compared against the reference noise floor from M4.
 - Accept when: the report states clearly whether the model beats the class-template baseline, and by how much on unseen players.
 
+### M6b: Sparsity ablation and embedded latency
+
+- Re-run the best classifier and the trajectory model under LOPO with:
+  - (a) sampling rate 100, 50, 25 Hz;
+  - (b) gyroscope only, accelerometer only, both;
+  - (c) window length at 100%, 75%, 50% of default.
+- Report each condition against the full-data result and the class-template baseline, with mean ± std over seeds. Plot error vs sampling rate.
+- Measure inference latency (median, p95) on a Raspberry Pi 4 in addition to the laptop CPU. Document the Pi setup in DESIGN.md.
+- Accept when: SUMMARY.md has an ablation table and states which reductions hurt most.
+
 ### M7: Inference interface, latency, replay
 
 - `racketimu.infer.infer(imu_window: np.ndarray, fs: float) -> InferenceResult`, where InferenceResult holds the stroke label, class probabilities, calibrated confidence, and the predicted wrist trajectory. Add type hints and a docstring with an example.
