@@ -23,7 +23,8 @@ data/interim/
 *.onnx
 *.joblib
 *.pkl
-# MediaPipe model bundles are downloaded, not committed
+# Downloaded models (`make models`), never committed
+models/
 *.task
 
 # --- Secrets ---

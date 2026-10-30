@@ -35,6 +35,12 @@ segment:                    # M3
   window_pre_s: 0.6               # window starts this long before the peak
   window_post_s: 0.4              # window ends this long after the peak
 
+pose_model:                 # M4, downloaded by `make models`
+  variant: heavy            # lite | full | heavy; see docs/DESIGN.md for why heavy
+  url: https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task
+  sha256: 64437af838a65d18e5ba7a0d39b465540069bc8aae8308de3e318aad31fcbc7b
+  path: models/pose_landmarker_heavy.task   # git-ignored
+
 reference:                  # M4
   trajectory_points: 32           # K: points per resampled wrist trajectory
   min_visibility: 0.5             # keypoint visibility below this counts as occluded (initial)
