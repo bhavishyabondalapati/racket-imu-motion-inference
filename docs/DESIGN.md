@@ -15,13 +15,23 @@ Each entry: what was chosen, the alternatives considered, and why. Newest milest
 - **Why:** results must be reproducible, and ranges let versions drift silently. A full lock file is heavier than this project needs. Keeping pins in one place avoids two lists going out of sync.
 - **Note:** only top-level packages are pinned; their sub-dependencies are not. Acceptable for now; revisit if CI and local runs disagree.
 
-### `pyarrow` added beyond the spec's list
-- **Chosen:** pin `pyarrow`.
-- **Why:** M3 writes `strokes.parquet`, and pandas needs pyarrow (or fastparquet) to do that. pyarrow is the pandas default.
+### `pyarrow` added beyond the spec's list (approved by the owner)
+- **Chosen:** pin `pyarrow==26.0.0`.
+- **Alternatives:** fastparquet; saving CSV instead of parquet.
+- **Why:** M3 writes `strokes.parquet`, and pandas needs pyarrow or fastparquet for that. pyarrow is the engine pandas uses by default and the most widely used. CSV would lose dtypes and is larger.
 
-### MediaPipe version and API
-- **Chosen:** `mediapipe==1.2.0`.
-- **Observed:** this version has only the `mediapipe.tasks` API; the old `mp.solutions.pose` API is gone. M4 will use the Tasks `PoseLandmarker`, which needs a downloaded `.task` model file. Model files are git-ignored and will be downloaded by a script with a pinned URL.
+### ffmpeg from conda-forge, inside the project env
+- **Chosen:** `conda install -c conda-forge ffmpeg` into `racket-imu-motion-inference` (installed: ffmpeg 7.1).
+- **Alternatives:** Homebrew (system-wide); a pip wrapper such as `imageio-ffmpeg`.
+- **Why:** ffmpeg is a binary, not a Python package, so pip can't pin it cleanly. A system-wide install isn't tied to the project. With conda it lives and dies with the env, and installing it left every pip-pinned package unchanged (checked after install).
+
+### MediaPipe: Tasks `PoseLandmarker`, heavy model, pinned by hash
+- **API:** `mediapipe==1.2.0` has only the `mediapipe.tasks` API; the old `mp.solutions.pose` is gone. M4 uses `vision.PoseLandmarker`, which needs a separate `.task` model file. Checked that the model loads and runs with this version.
+- **Variant chosen: heavy** (float16, version 1, about 30 MB).
+- **Alternatives:** `lite` (fastest, least accurate) and `full` (middle ground).
+- **Why heavy:** pose here is the *reference* every wrist prediction is scored against, so its error sets a floor on what M6 can show. Pose runs offline, once per video, so speed barely matters: a few minutes of 60 fps video is a few thousand frames. Fast swings blur the wrist, which is where a bigger model should help most. If heavy proves too slow, `full` is a one-line config change, but its reference noise must then be measured again in M4.
+- **Pinning:** `configs/default.yaml` stores the variant, a URL with an explicit version (`/float16/1/`, not `/latest/`), and the SHA-256 (`64437af8…cbc7b`). `make models` (`scripts/download_pose_model.py` → `racketimu.assets.download_verified`) downloads to the git-ignored `models/` folder. The file is written as `.part` and renamed only after the hash matches, so a bad download never looks valid. An existing file with the wrong hash is reported, not overwritten.
+- **Why hash it:** if Google ever replaced the file at that URL, the reference trajectories would change silently. With the hash check, the download fails loudly instead.
 
 ### `src/` layout, installed in editable mode
 - **Alternatives:** flat package at the repo root.
@@ -35,11 +45,12 @@ Each entry: what was chosen, the alternatives considered, and why. Newest milest
 
 ### Seeding
 - **Chosen:** `set_seed(seed)` seeds `random`, NumPy's global state, and torch (which covers MPS), and returns a `numpy.random.Generator`.
-- **Why:** new code should pass the returned Generator explicitly; global seeding covers libraries that use global state. Full bitwise determinism on MPS is not guaranteed by PyTorch, which is why the deep models are reported as mean ± std over 3 seeds.
+- **Why:** new code should pass the returned Generator explicitly; global seeding covers libraries that use global state. Reporting deep models as mean ± std over 3 seeds shows how much results depend on the seed, separately from the device question below.
 
-### Device selection
-- **Chosen:** `get_device("auto")` returns `mps` on Apple Silicon, else `cpu`.
-- **Why:** the dev machine is an M4 Pro; CI and other machines fall back to CPU. Latency (M7) is measured on CPU as the spec requires.
+### Device selection: CPU by default (owner's decision)
+- **Chosen:** `train.device: cpu` in the config, and `get_device()` defaults to `cpu`. Every reported experiment (training, evaluation, latency) runs on CPU. `mps` and `auto` (MPS if available, else CPU) are opt-in flags for quick local iteration only. Any other value is rejected, and asking for `mps` where it isn't available is an error, not a silent fallback.
+- **Alternative:** default to `mps` on the M4 Pro for speed.
+- **Why:** MPS results are **not bit-for-bit reproducible**. Some MPS kernels are non-deterministic, and PyTorch has no deterministic mode that covers them, so the same seed can give slightly different weights and metrics. CPU runs with a fixed seed repeat exactly, which matters more than speed for models this small. Results from an `mps` run must never be copied into `results/` or the README.
 
 ### Checkpoints and large files
 - **Problem:** the spec asks to ignore checkpoints over 5 MB, but `.gitignore` cannot filter by size.

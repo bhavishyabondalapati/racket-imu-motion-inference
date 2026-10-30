@@ -17,16 +17,15 @@ _Empty until M8. Every number here will come from `results/SUMMARY.md`, which is
 | numpy, pandas | Arrays and tables for the IMU streams and stroke metadata |
 | scipy | Signal processing: resampling, filtering, peak detection for taps and strokes |
 | scikit-learn | Random-forest baseline, metrics, and cross-validation helpers |
-| torch | Small 1D CNN and GRU models; uses Apple Silicon's `mps` device locally |
+| torch | Small 1D CNN and GRU models; runs on CPU for reported results (Apple `mps` is opt-in for quick local runs) |
 | opencv-python | Reading video frames and writing replay videos |
-| mediapipe | Pose estimation on video, which gives the reference wrist trajectory |
+| mediapipe | PoseLandmarker (heavy model) estimates pose on video, which gives the reference wrist trajectory |
 | ahrs | Ready-made, tested Madgwick orientation filter |
 | matplotlib | Verification plots (sync, segmentation, reliability diagrams) |
 | pyyaml | Config and session metadata files |
 | pyarrow | Lets pandas write `strokes.parquet` |
 | pytest, ruff | Tests and lint/format, run locally and in GitHub Actions |
-
-ffmpeg (for extracting audio for sync) will be added in M1.
+| ffmpeg (conda-forge) | Extracts each video's audio track so the sync taps can be found by sound (M1) |
 
 ## File structure
 
@@ -44,10 +43,14 @@ data/raw/, data/interim/         recordings and intermediate files (git-ignored,
 data/processed/                  small derived tables
 src/racketimu/__init__.py        package marker and version
 src/racketimu/config.py          loads the YAML config and applies overrides
-src/racketimu/seed.py            seeds Python/NumPy/torch; picks mps or cpu
+src/racketimu/seed.py            seeds Python/NumPy/torch; picks the device (cpu by default)
+src/racketimu/assets.py          downloads a file and verifies its SHA-256 hash
 scripts/check_large_files.py     fails if any tracked file is over 5 MB
+scripts/download_pose_model.py   downloads the pose model named in the config (`make models`)
+models/                          downloaded model files (git-ignored, local only)
 tests/test_config.py             tests for config loading and merging
-tests/test_seed.py               tests that seeding is reproducible
+tests/test_seed.py               tests that seeding is reproducible and cpu is the default device
+tests/test_assets.py             tests for hash-checked downloads (local files, no network)
 docs/DESIGN.md                   every design decision, alternatives, and reasons
 docs/figures/                    verification plots (filled from M1 on)
 results/                         one folder per run + SUMMARY.md (filled from M5 on)
@@ -58,7 +61,9 @@ results/                         one folder per run + SUMMARY.md (filled from M5
 ```bash
 conda create -n racket-imu-motion-inference python=3.11
 conda activate racket-imu-motion-inference
+conda install -c conda-forge ffmpeg    # into this env only, not system-wide
 make install          # same as: pip install -r requirements.txt
+make models           # downloads the pose model (~30 MB) and checks its SHA-256
 ```
 
 ## How to run
@@ -79,7 +84,7 @@ Pipeline steps (`make sync`, `make frames`, … `make report`, `make all`) exist
 
 ## How it was built
 
-1. **M0, scaffold:** wrote the spec, created the conda env, installed the libraries and pinned the exact versions that resolved together, then added the config loader, seed utility, tests, Makefile, large-file guard, and CI.
+1. **M0, scaffold:** wrote the spec, created the conda env, installed the libraries and pinned the exact versions that resolved together, then added the config loader, seed utility, tests, Makefile, large-file guard, and CI. Then added ffmpeg to the env, a hash-checked download for the pose model, and made CPU the default device.
 
 Later milestones (M1 sync → M8 report) will be added here as they are completed.
 
@@ -88,4 +93,6 @@ Later milestones (M1 sync → M8 report) will be added here as they are complete
 - **Leave-one-player-out (LOPO) cross-validation:** train on all players but one, test on the one left out, repeat for each player. Strokes from one player look alike, so a random split would leak a player's style into training and overstate accuracy. LOPO measures what matters: performance on a new person.
 - **Reproducibility:** exact dependency pins, one config file for all parameters, and one seed function mean anyone can rerun the pipeline and get the same numbers.
 - **Config over constants:** thresholds live in `configs/default.yaml`, not in code, so experiments change a file, not the source, and each run saves the config it used.
+- **Pinned model files:** the pose model is downloaded from a versioned URL and checked against a SHA-256 hash, so the reference trajectories can't change silently if the file at that URL does.
+- **CPU for reported results:** GPU backends like MPS can give slightly different numbers run to run. Reported numbers use CPU so they can be reproduced exactly.
 - **CI:** GitHub Actions runs lint and tests on every push, so a broken change is caught immediately.
