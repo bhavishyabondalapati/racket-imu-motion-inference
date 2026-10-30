@@ -1,0 +1,55 @@
+# All thresholds, window sizes, and seeds live here.
+# Values marked "initial" are starting points chosen before seeing any data;
+# they will be checked against real recordings in the milestone noted, and any
+# change is recorded in docs/DESIGN.md.
+
+paths:
+  sessions: data/sessions.yaml
+  raw: data/raw
+  interim: data/interim
+  processed: data/processed
+  results: results
+  figures: docs/figures
+
+seed: 0                     # global seed for anything not listed below
+seeds: [0, 1, 2]            # deep models are run once per seed (M5, M6)
+
+imu:
+  resample_hz: 100          # common uniform rate after loading (M1)
+
+sync:                       # M1
+  search_window_s: 15.0     # look for each tap in the first / last N seconds (initial)
+  min_tap_separation_s: 5.0 # the start and end taps must be at least this far apart (initial)
+
+calibration:                # M2
+  static_duration_s: 3.0    # length of each still pose in the recording protocol
+  max_static_gyro_rad_s: 0.1  # "still" means gyro magnitude below this (initial)
+
+orientation:                # M2
+  madgwick_gain: 0.033      # ahrs default beta (initial)
+  complementary_gain: 0.02  # weight of the accelerometer correction (initial)
+
+segment:                    # M3
+  gyro_peak_threshold_rad_s: 8.0  # minimum gyro-magnitude peak height for a stroke (initial)
+  min_peak_spacing_s: 1.5         # two strokes cannot be closer than this (initial)
+  window_pre_s: 0.6               # window starts this long before the peak
+  window_post_s: 0.4              # window ends this long after the peak
+
+reference:                  # M4
+  trajectory_points: 32           # K: points per resampled wrist trajectory
+  min_visibility: 0.5             # keypoint visibility below this counts as occluded (initial)
+  max_occluded_fraction: 0.3      # strokes above this are unusable for regression (initial)
+
+train:                      # M5, M6
+  batch_size: 32
+  max_epochs: 200
+  early_stopping_patience: 20
+  learning_rate: 0.001
+  device: auto              # auto -> mps on Apple Silicon, else cpu
+
+random_forest:              # M5 baseline
+  n_estimators: 300
+  max_depth: null
+
+latency:                    # M7
+  n_runs: 1000

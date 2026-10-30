@@ -1,0 +1,22 @@
+# Recording metadata. One entry per player and per recording session.
+# No sessions are recorded yet; fill this in as recordings are added to data/raw/.
+#
+# Template (copy, uncomment, and edit):
+#
+# players:
+#   p01: {handedness: right, level: intermediate}
+# sessions:
+#   - id: p01_forehand_s1
+#     player: p01
+#     stroke: forehand                 # forehand | backhand | serve | volley
+#     imu_dir: data/raw/p01_forehand_s1/imu/
+#     video: data/raw/p01_forehand_s1/video.mp4
+#     sync:
+#       start_tap_video_time_s: null   # auto-detected; manual override allowed
+#       end_tap_video_time_s: null
+#     expected_strokes: null           # the count you noted while recording
+#     exclude_stroke_indices: []       # e.g. mishits you flag
+#     notes: ""
+
+players: {}
+sessions: []
