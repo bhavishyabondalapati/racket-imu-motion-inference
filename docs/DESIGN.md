@@ -66,3 +66,8 @@ Each entry: what was chosen, the alternatives considered, and why. Newest milest
 ### CI installs CPU-only torch
 - **Chosen:** CI first installs the pinned torch version from PyTorch's CPU wheel index, then installs everything else.
 - **Why:** the default Linux torch wheel pulls in about 2 GB of CUDA libraries that a CPU runner cannot use. The version stays the same; only the build differs (`+cpu`).
+
+### CI runner pinned to `ubuntu-26.04`; actions on current majors
+- **Chosen:** `runs-on: ubuntu-26.04`, `actions/checkout@v7`, `actions/setup-python@v7` (the latest major versions on 2026-10-30).
+- **Alternative:** `ubuntu-latest`, which GitHub moves to new Ubuntu releases on its own schedule.
+- **Why:** if the label moved, the test environment would change without any commit in this repo, and a new failure (or a hidden behaviour change) couldn't be traced to a diff. 26.04 is the image the first green run already used, so pinning it changes nothing today. Upgrading is now a deliberate one-line change. The old v4/v5 actions also triggered a Node.js 20 deprecation warning.
