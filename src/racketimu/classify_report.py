@@ -12,6 +12,7 @@ from racketimu.evaluate import classification_metrics, ece, group_metrics
 MODEL_LABELS = {
     "majority": "Majority class",
     "rf_mean_only": "Leak check: RF on per-sample channel means",
+    "rf_motion_only": "Motion-only check: RF with each sample's channel means removed",
     "rf_length_only": "Length check: RF on real-row count",
     "rf_primary": "RF, handcrafted features (primary channels)",
     "rf_primary_heading": "Heading check: RF + yaw and magnetometer",
@@ -56,8 +57,8 @@ def results_table(seed_metrics: pd.DataFrame) -> pd.DataFrame:
             "seeds": g.size(),
             "accuracy": g["accuracy"].apply(_pm),
             "macro-F1": g["macro_f1"].apply(_pm),
-            "ECE before T": g["ece_raw"].apply(_pm),
-            "ECE after T": g["ece_cal"].apply(_pm),
+            "ECE (uncalibrated, primary)": g["ece_raw"].apply(_pm),
+            "ECE after T (did not transfer)": g["ece_cal"].apply(_pm),
             "median T": g["temperature_median"].apply(lambda s: f"{s.median():.2f}"),
         }
     )
@@ -134,6 +135,9 @@ def shortcut_checks(seed_metrics: pd.DataFrame, oof: pd.DataFrame, cfg: dict) ->
         "length_only_flagged": bool(
             f1["rf_length_only"].mean() - majority >= thr["leak_margin_flag"]
         ),
+        "motion_only_macro_f1": float(f1["rf_motion_only"].mean()),
+        "motion_only_vs_full_rf": float(f1["rf_motion_only"].mean() - f1["rf_primary"].mean()),
+        "mean_only_vs_full_rf": float(f1["rf_mean_only"].mean() - f1["rf_primary"].mean()),
         "thresholds": thr,
     }
 
@@ -163,6 +167,12 @@ def checks_markdown(chk: dict) -> list[str]:
         f"{chk['mean_only_margin']:+.3f} relative to the majority baseline "
         f"({chk['majority_macro_f1']:.3f}). Rule: a margin of at least {thr['leak_margin_flag']} "
         f"counts as well above. Result: {flag[chk['mean_only_flagged']]}.",
+        f"- **Motion-only check (each sample's channel means removed; no threshold fixed in "
+        f"advance):** macro-F1 {chk['motion_only_macro_f1']:.3f}, which is "
+        f"{chk['motion_only_vs_full_rf']:+.3f} relative to the full handcrafted RF and "
+        f"{chk['motion_only_macro_f1'] - chk['majority_macro_f1']:+.3f} relative to majority. "
+        f"For comparison, the mean-only RF is {chk['mean_only_vs_full_rf']:+.3f} relative to "
+        "the full RF.",
         f"- **Length check (real-row count only):** macro-F1 is "
         f"{chk['length_only_margin']:+.3f} relative to the majority baseline. Same rule. "
         f"Result: {flag[chk['length_only_flagged']]}.",

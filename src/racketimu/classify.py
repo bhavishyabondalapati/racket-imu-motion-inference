@@ -17,8 +17,14 @@ from sklearn.ensemble import RandomForestClassifier
 from racketimu import io
 from racketimu.dataset import inner_validation_players, lopo_test_players, to_arrays
 from racketimu.evaluate import apply_temperature, fit_temperature, probs_to_logits
-from racketimu.features import handcrafted_features, length_features, mean_features
+from racketimu.features import (
+    handcrafted_features,
+    length_features,
+    mean_features,
+    motion_only_features,
+)
 from racketimu.models import build_model
+from racketimu.seed import set_seed
 from racketimu.train import (
     apply_scaler,
     class_weights,
@@ -29,7 +35,9 @@ from racketimu.train import (
 
 CLASSES = list(io.STROKES)
 N_CLASSES = len(CLASSES)
-FEATURE_MODELS = ["rf_mean_only", "rf_length_only", "rf_primary", "rf_primary_heading"]
+FEATURE_MODELS = [
+    "rf_mean_only", "rf_motion_only", "rf_length_only", "rf_primary", "rf_primary_heading",
+]  # fmt: skip
 DEEP_MODELS = ["cnn", "gru"]
 
 
@@ -58,6 +66,7 @@ def prepare_inputs(windows: pd.DataFrame, cfg: dict) -> Inputs:
     x_ph, _, _ = to_arrays(windows, primary + heading)
     features = {
         "rf_mean_only": mean_features(x_p, mask, primary)[0],
+        "rf_motion_only": motion_only_features(x_p, mask, primary)[0],
         "rf_length_only": length_features(mask)[0],
         "rf_primary": handcrafted_features(x_p, mask, primary)[0],
         "rf_primary_heading": handcrafted_features(x_ph, mask, primary + heading)[0],
@@ -115,6 +124,7 @@ def run_deep(name: str, inp: Inputs, fold: Fold, cfg: dict, seed: int):
         rows = getattr(fold, part)
         x = apply_scaler(inp.x_primary[rows], inp.mask[rows], mean, std)
         sets[part] = (x, inp.mask[rows], inp.y[rows])
+    set_seed(seed)  # before building, so the initial weights depend only on the seed
     model = build_model(name, inp.x_primary.shape[2], N_CLASSES, cfg)
     weights = class_weights(inp.y[fold.fit], N_CLASSES)
     model, info = train_classifier(model, sets["fit"], sets["val"], weights, cfg["train"], seed)

@@ -7,7 +7,12 @@ import torch
 
 from racketimu.dataset import inner_validation_players, lopo_test_players
 from racketimu.evaluate import apply_temperature, ece, fit_temperature, group_metrics
-from racketimu.features import handcrafted_features, length_features, mean_features
+from racketimu.features import (
+    handcrafted_features,
+    length_features,
+    mean_features,
+    motion_only_features,
+)
 from racketimu.models import StrokeCNN, StrokeGRU
 from racketimu.train import apply_scaler, class_weights, fit_scaler, train_classifier
 
@@ -127,3 +132,38 @@ def test_lopo_and_inner_validation_never_overlap_with_test():
         val = inner_validation_players(meta[meta["player"] != test], {"novice": 1, "pro": 1}, 0)
         assert test not in val and len(val) == 2
         assert "P03" not in val  # only players with all three classes are preferred
+
+
+def test_motion_only_features_ignore_a_constant_offset():
+    x, mask = synthetic()
+    feats, names = motion_only_features(x, mask, PRIMARY)
+    shifted = x.copy()
+    offset = np.array([1, 2, 3, 0.5, 0.5, 0.5, 20, 0, 0], dtype=np.float32)
+    shifted[0][mask[0]] += offset
+    again = motion_only_features(shifted, mask, PRIMARY)[0][0]
+    np.testing.assert_allclose(again, feats[0], rtol=1e-4, atol=1e-4)
+    assert not any(n.endswith("_mean") for n in names)
+
+
+def test_deep_run_is_independent_of_prior_random_state(fake_dataset, dataset_cfg):
+    from racketimu import classify as C
+    from racketimu.dataset import build_windows
+    from racketimu.io import load_dataset
+
+    ds = load_dataset(fake_dataset, dataset_cfg)
+    windows = build_windows(ds, {"n_rows": 8, "center": "peak_gyro", "peak_position": 4})
+    heading = ["yaw_sin", "yaw_cos", "mag_x", "mag_y", "mag_z"]
+    cfg = {
+        "channels": {"primary": PRIMARY, "heading": heading},
+        "cnn": {"channels": [4], "kernel_size": 3, "dropout": 0.0},
+        "train": {"device": "cpu", "learning_rate": 0.01, "batch_size": 2, "max_epochs": 2,
+                  "early_stopping_patience": 1},
+    }  # fmt: skip
+    inp = C.prepare_inputs(windows, cfg)
+    everything = np.ones(len(inp.y), dtype=bool)
+    fold = C.Fold("x", [], fit=everything, val=everything, test=everything)
+    torch.manual_seed(123)
+    a = C.run_deep("cnn", inp, fold, cfg, seed=0)[0]
+    torch.manual_seed(999)  # a different prior random state must not change the result
+    b = C.run_deep("cnn", inp, fold, cfg, seed=0)[0]
+    np.testing.assert_array_equal(a, b)

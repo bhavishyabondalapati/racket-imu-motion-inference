@@ -88,3 +88,30 @@ def mean_features(
 def length_features(mask: np.ndarray) -> tuple[np.ndarray, list[str]]:
     """Number of real rows in the window only."""
     return mask.sum(axis=1, keepdims=True).astype(np.float64), ["real_rows"]
+
+
+def motion_only_features(
+    x: np.ndarray, mask: np.ndarray, channels: list[str]
+) -> tuple[np.ndarray, list[str]]:
+    """Features that ignore each sample's average level ("motion-only" check).
+
+    Each channel has its per-sample mean over real rows subtracted first, so static
+    racket orientation is removed. Then: std, min and max of every centered channel;
+    magnitude features of the centered gyro and acc vectors; and roll/pitch change and
+    path, which are differences and so already ignore the mean. Adding a constant to a
+    channel of one sample leaves every feature unchanged.
+    """
+    xm = _masked(x, mask)
+    centered = x - np.nanmean(xm, axis=1, keepdims=True)
+    centered[~mask] = 0.0
+    stats, names = channel_stats(centered, mask, channels)
+    keep = [i for i, n in enumerate(names) if not n.endswith("_mean")]
+    motion, motion_names = motion_features(centered, mask, channels)
+    from_original, orig_names = motion_features(x, mask, channels)
+    angle_cols = [i for i, n in enumerate(motion_names) if n.startswith(("roll_", "pitch_"))]
+    for i in angle_cols:  # angle changes are taken from the uncentered angles
+        motion[:, i] = from_original[:, orig_names.index(motion_names[i])]
+    motion_names = [
+        f"{n}_centered" if i not in angle_cols else n for i, n in enumerate(motion_names)
+    ]
+    return np.concatenate([stats[:, keep], motion], axis=1), [names[i] for i in keep] + motion_names
