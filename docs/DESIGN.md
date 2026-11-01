@@ -71,3 +71,17 @@ Each entry: what was chosen, the alternatives considered, and why. Newest milest
 - **Chosen:** `runs-on: ubuntu-26.04`, `actions/checkout@v7`, `actions/setup-python@v7` (the latest major versions on 2026-10-30).
 - **Alternative:** `ubuntu-latest`, which GitHub moves to new Ubuntu releases on its own schedule.
 - **Why:** if the label moved, the test environment would change without any commit in this repo, and a new failure (or a hidden behaviour change) couldn't be traced to a diff. 26.04 is the image the first green run already used, so pinning it changes nothing today. Upgrading is now a deliberate one-line change. The old v4/v5 actions also triggered a Node.js 20 deprecation warning.
+
+## Switch to a public dataset (2026-10-31)
+
+### Use Tabrizi et al. (2020) instead of self-recorded sessions
+- **Chosen:** the public table tennis dataset by Tabrizi, Javani and Pashazadeh (Mendeley Data, DOI 10.17632/b7bc9y232m.3, CC BY 4.0): one BNO055 IMU on the racket face, 16 players (8 novice, 8 professional), 1570 forehand samples of three types, labelled and scored by 3 coaches.
+- **Alternative:** the original plan, which used self-recorded tennis sessions with a phone on the racket and synchronized video as the reference (old milestones M1 to M8).
+- **Why:** it has 16 players, including both novices and professionals, plus labels and quality scores from three coaches. A self-recorded pilot would have had 3 to 5 amateur players and no expert scores. That makes leave-one-player-out evaluation, skill-level transfer, and quality estimation possible now.
+- **What is lost:** there is no synchronized video or motion capture, so the wrist-trajectory task (old M6) and anything about body motion can no longer be validated and is dropped. It is also table tennis, not tennis. Both go into the D9 limitations.
+- **What is not claimed:** the data and its original analysis belong to the authors. This project's contribution is its evaluation protocol, analysis, ablations, and inference interface.
+
+### Makefile targets follow the new milestones
+- **Removed:** the recording-based placeholders `sync`, `frames`, `segment`, `reference`, and `trajectory` (video sync, phone-to-racket frames, pose reference, wrist trajectory).
+- **Added:** placeholders `inspect` (D1), `preprocess` (D2), `classify` (D3), `quality` (D4), `skill` (D5), `ablation` (D6), `errors` (D7), `latency` (D8), and `report` (D9). As before, each one exits with an error until it is built. `make all` runs D2 to D9.
+- **Kept for now (M0 code):** `make models` / `scripts/download_pose_model.py`, the `pose_model`, `sync`, `calibration`, `orientation`, and `reference` sections of `configs/default.yaml`, and ffmpeg in the env. None of these is used by the new plan. Removing them is left to the owner's decision, because the spec says M0 stays as is.

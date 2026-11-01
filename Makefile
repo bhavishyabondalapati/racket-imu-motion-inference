@@ -2,8 +2,8 @@
 #   conda activate racket-imu-motion-inference
 PYTHON ?= python
 
-.PHONY: help install models test lint format sync frames segment reference classify trajectory \
-        latency report all
+.PHONY: help install models test lint format inspect preprocess classify quality skill \
+        ablation errors latency report all
 
 help:
 	@echo "make install     install pinned packages (editable) + dev tools"
@@ -11,9 +11,10 @@ help:
 	@echo "make test        unit tests (synthetic data only)"
 	@echo "make lint        ruff + large-file check"
 	@echo "make format      auto-format with ruff"
-	@echo "make sync        M1   make frames     M2   make segment  M3"
-	@echo "make reference   M4   make classify   M5   make trajectory M6"
-	@echo "make latency     M7   make report     M8   make all      M1..M8 in order"
+	@echo "make inspect     D1   make preprocess D2   make classify D3"
+	@echo "make quality     D4   make skill      D5   make ablation D6"
+	@echo "make errors      D7   make latency    D8   make report   D9"
+	@echo "make all         D2..D9 in order"
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -39,21 +40,23 @@ define not_yet
 	@echo "make $@: not implemented yet ($(1))." >&2; exit 1
 endef
 
-sync:
-	$(call not_yet,M1)
-frames:
-	$(call not_yet,M2)
-segment:
-	$(call not_yet,M3)
-reference:
-	$(call not_yet,M4)
+inspect:
+	$(call not_yet,D1)
+preprocess:
+	$(call not_yet,D2)
 classify:
-	$(call not_yet,M5)
-trajectory:
-	$(call not_yet,M6)
+	$(call not_yet,D3)
+quality:
+	$(call not_yet,D4)
+skill:
+	$(call not_yet,D5)
+ablation:
+	$(call not_yet,D6)
+errors:
+	$(call not_yet,D7)
 latency:
-	$(call not_yet,M7)
+	$(call not_yet,D8)
 report:
-	$(call not_yet,M8)
+	$(call not_yet,D9)
 
-all: sync frames segment reference classify trajectory latency report
+all: preprocess classify quality skill ablation errors latency report
