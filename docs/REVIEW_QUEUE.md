@@ -17,8 +17,14 @@ Decisions taken while the owner was offline (2026-11-01), each with the more con
 7. **D6 GRU conditions limited** to full data, every 4th row and motion-only (owner's instruction); the RF covers every condition.
 8. **D6 figure labels:** the committed D6 run's figure and report say "Every 2th row" (a label bug, fixed in code afterwards; `results/SUMMARY.md` shows "2nd"). The numbers are unaffected; the run was not repeated just for the label.
 
+### D4
+9. **GRU predicts the 6 targets as 6 outputs of one network** (joint MSE on standardized targets) rather than 6 separate networks. *Alternative:* 6 GRUs, six times the compute. *Why:* each criterion still gets its own prediction and metrics; the RF uses fully separate models, so the stronger "separate" reading is covered by the RF.
+10. **Per-class baseline uses the true stroke class** of the test stroke. *Alternative:* the predicted class from D3. *Why:* the true class makes the baseline stronger, the conservative direction; the verdict is judged against the level-only baseline anyway.
+11. **Baselines use all training players (fit + validation); models use the fit set.** *Why:* the strongest baselines and the D3 model protocol unchanged. Both choices make it harder, not easier, for the models to look good.
+
 ## Open questions for the owner
 1. **Calibration across players:** temperature fitted on 2 inner validation players made ECE worse on every model. A temperature fitted on more players (for example, inner leave-one-player-out over all training players) might transfer better, but that changes the inner protocol, so it was not done.
 2. **Leak check flagged:** mean orientation alone matches the full models. Separating "real racket-angle difference" from "recording-block artifact" would need data the dataset does not have, such as interleaved stroke types within one recording.
 3. **Length check close to its threshold** (+0.085 vs 0.10): worth keeping in mind when reading any model that sees the mask.
 4. **D6 says almost no data is needed** (accelerometer only at about 2 rows per second matches full data), but only because the task is solved through static racket angle. Whether to present this as a positive sparsity result or as a sign the task is too easy for this dataset is a framing choice for the write-up.
+5. **D4 negative result:** no model beats the level-only baseline. Worth deciding whether D8's quality output should be kept in the interface (it is kept, with a note saying it mostly reflects level) or removed.

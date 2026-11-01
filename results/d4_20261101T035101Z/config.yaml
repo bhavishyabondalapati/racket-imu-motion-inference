@@ -1,0 +1,88 @@
+paths:
+  raw: data/raw
+  interim: data/interim
+  processed: data/processed
+  results: results
+  figures: docs/figures
+  docs: docs
+seed: 0
+seeds:
+- 0
+- 1
+- 2
+dataset:
+  root: data/raw/tabrizi2020
+  units:
+    acc_lsb_per_m_s2: 100
+    gyro_lsb_per_dps: 16
+    mag_lsb_per_ut: 16
+  player_overrides:
+    720: P05
+  stated_rates_hz:
+    Data in Brief article, 2020: 100
+    Computational Intelligence and Neuroscience paper, 2021: 70
+lopo:
+  excluded_test_players:
+  - P06
+channels:
+  primary:
+  - acc_x
+  - acc_y
+  - acc_z
+  - gyro_x
+  - gyro_y
+  - gyro_z
+  - roll_deg
+  - pitch_sin
+  - pitch_cos
+  heading:
+  - yaw_sin
+  - yaw_cos
+  - mag_x
+  - mag_y
+  - mag_z
+window:
+  n_rows: 48
+  center: peak_gyro
+  peak_position: 16
+quality:
+  beat_rule: pooled_mae_below_level_baseline_all_seeds
+ablation:
+  row_strides:
+  - 1
+  - 2
+  - 4
+  window_fractions:
+  - 1.0
+  - 0.75
+  - 0.5
+  deep_model: gru
+classify:
+  inner_val_players:
+    novice: 1
+    pro: 1
+  class_weight: balanced
+  ece_bins: 15
+  checks:
+    heading_gain_flag: 0.02
+    leak_margin_flag: 0.1
+cnn:
+  channels:
+  - 32
+  - 64
+  kernel_size: 5
+  dropout: 0.2
+gru:
+  hidden_size: 64
+  dropout: 0.2
+train:
+  batch_size: 32
+  max_epochs: 200
+  early_stopping_patience: 20
+  learning_rate: 0.001
+  device: cpu
+random_forest:
+  n_estimators: 300
+  max_depth: null
+latency:
+  n_runs: 1000

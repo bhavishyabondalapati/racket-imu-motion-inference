@@ -279,3 +279,25 @@ All numbers below are from `results/d3_20261101T032754Z/report.md`: pooled out-o
 - **Reproduction check:** the full-data condition gives exactly the same out-of-fold predictions as D3 for both the RF and the GRU (all 4032 seed-sample pairs each).
 - **What hurts most, stated plainly:** only two reductions hurt. Removing each sample's channel means (motion-only) costs 0.131 (RF) and 0.159 (GRU) macro-F1. Using the gyroscope alone costs 0.063. **Nothing else hurts:** cutting the rate to every 4th row (about 2 rows per second), halving the window, or dropping the gyroscope and the Euler angles (accelerometer only) all stay within about ±0.01 of full data, which is the size of the seed noise. Some reductions even score slightly higher, within noise.
 - **Interpretation (hedged, consistent with D3):** the accelerometer at rest measures the direction of gravity, which is the racket's orientation, and orientation is what the models use. Anything that keeps orientation keeps the performance; the two conditions that remove it (motion-only, gyroscope only) lose it. For this dataset the answer to "how much sensor data is needed" is: very little, a 3-axis accelerometer at about 2 rows per second over the stroke. But that is because the task is solved through static racket angle, not swing dynamics, so it may not hold for tasks that need motion.
+
+## D4: Stroke quality estimation (2026-11-01)
+
+### Design
+- **Targets:** C1-C5 and their mean, each predicted separately. The RF uses one regressor per target. The GRU has one output per target, trained jointly with MSE on fit-set-standardized targets, so it is still a separate prediction per criterion from one network (see `docs/REVIEW_QUEUE.md`).
+- **Baselines:** the global training mean, the per-class training mean, and the level-only baseline (the training mean for the test player's level). Baselines use all training players (fit + validation), which makes them as strong as possible. The per-class baseline uses the test stroke's **true** class, which flatters the baseline, the conservative direction.
+- **Models:** the RF regressor on the D3 handcrafted primary features (fit set only) and the GRU (fit set, early stopping on the validation players), same folds and seeds as D3.
+- **Rule fixed before the run:** a model judges stroke quality beyond level only if its pooled MAE is below the level-only baseline's **in every seed** (`quality.beat_rule`).
+
+### Results (run `d4_20261101T035101Z`, commit `613650d`)
+| score_mean | MAE | Spearman |
+|---|---|---|
+| Global training mean | 12.24 | −0.829 |
+| Per-class training mean | 11.70 | −0.137 |
+| **Level-only baseline** | **4.98** | **0.574** |
+| RF regressor | 10.85 ± 0.02 | 0.281 ± 0.002 |
+| GRU | 9.90 ± 0.26 | 0.297 ± 0.023 |
+
+- **Verdict, stated plainly: the models do not judge stroke quality beyond level.** Neither the RF nor the GRU beats the level-only baseline on any of the 6 targets. On the mean score the level-only baseline's error (4.98 points) is about half the models' (9.9-10.9). The models do beat the global and per-class means slightly, mostly because they partly recover level from the signal.
+- **Within level:** for novices, the models rank strokes weakly (Spearman 0.13 RF, 0.17 GRU on the mean score; about 0.35 on C3 for both). For pros, the rankings are negative (−0.15 RF, −0.23 GRU). Pro scores are tightly packed (std about 2 points on the mean), so there is little to rank.
+- **Reading the baselines' Spearman:** the global-mean and level-only baselines show strongly negative Spearman (−0.83 overall; −0.72 within novices, −0.59 within pros). This is a known leave-one-out artifact: removing a low-scoring player from training raises the training mean predicted for that player, so predicted and true scores move in opposite directions across folds. It does not mean those baselines are anti-informative within a fold. Their MAE is the meaningful number.
+- **Why, in the light of D3 and D6:** the signal mostly carries static racket orientation, which identifies stroke type well but says little about how well a stroke was played. Coach scores mostly track the player's level (novice mean 70.6, pro mean 93.7; `docs/DATASET.md`).
