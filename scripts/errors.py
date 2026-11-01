@@ -37,6 +37,12 @@ def pattern_lines(df, players, low, conf) -> list[str]:
     bt = pairs[pairs["true"].isin(["BASIC", "TOPSPIN"]) & pairs["pred"].isin(["BASIC", "TOPSPIN"])]
     first_row = df["peak_row"] == 0
     conf_pairs = conf.groupby(["true", "pred"]).size().sort_values(ascending=False)
+    bins = pd.cut(df["n_rows"], [0, 15, 25, 40, 10_000], labels=["2-15", "16-25", "26-40", "41+"])
+    g = df.assign(b=bins).groupby("b", observed=True)["correct"]
+    lengths = pd.DataFrame({"rate": 1 - g.mean(), "n": g.size()})
+    cl = df.groupby(["true", "level"])["correct"].agg(["mean", "size"]).reset_index()
+    worst = cl.assign(rate=1 - cl["mean"], n=cl["size"]).sort_values("rate").iloc[-1]
+    push_rate = 1 - df.loc[df["true"] == "PUSH", "correct"].mean()
     return [
         f"- **Where the errors are:** {int((~df['correct']).sum())} of {len(df)} strokes are "
         f"misclassified. The largest error type is {top['true']} predicted as {top['pred']} "
@@ -57,6 +63,12 @@ def pattern_lines(df, players, low, conf) -> list[str]:
         f"({players.index[0]}) to {players['accuracy'].max():.3f}. Mean per-player accuracy is "
         f"{gap.get('novice', np.nan):.3f} for novices and {gap.get('pro', np.nan):.3f} for pros "
         "(players weighted equally).",
+        "- **Stroke length:** error rate by number of rows in the stroke file: "
+        + ", ".join(f"{r.Index} rows {r.rate:.3f} (n={r.n})" for r in lengths.itertuples())
+        + ".",
+        f"- **Class and level:** the highest error rate is {worst.true} by {worst.level}s "
+        f"({worst.rate:.3f}, n={worst.n}); push is almost never misclassified "
+        f"({push_rate:.3f} overall).",
         f"- **Peak on the first row:** error rate {1 - df.loc[first_row, 'correct'].mean():.3f} "
         f"for the {int(first_row.sum())} strokes whose peak is on the first logged row, vs "
         f"{1 - df.loc[~first_row, 'correct'].mean():.3f} for the rest.",
