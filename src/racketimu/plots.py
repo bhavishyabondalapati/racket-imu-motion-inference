@@ -278,12 +278,17 @@ def plot_f1_vs_stride(summary: pd.DataFrame, cfg: dict, deep: str, out: Path) ->
         ]
         stride = s["condition"].map(lambda c: 1 if c == "full" else int(c.split("_")[1]))
         order = np.argsort(stride.to_numpy())
+        complete = len(order) == len(cfg["ablation"]["row_strides"])  # no line across gaps
         ax.errorbar(stride.to_numpy()[order], s["f1_mean"].to_numpy()[order],
-                    yerr=s["f1_std"].to_numpy()[order], color=SERIES[k], linestyle=STYLES[k],
-                    linewidth=2, marker="o", markersize=6, capsize=3, label=label)  # fmt: skip
+                    yerr=s["f1_std"].to_numpy()[order], color=SERIES[k],
+                    linestyle=STYLES[k] if complete else "none", linewidth=2, marker="o",
+                    markersize=6, capsize=3, label=label)  # fmt: skip
     strides = cfg["ablation"]["row_strides"]
-    ax.set_xticks(strides, [f"every {s}{'st' if s == 1 else 'th'} row\n(~{8 * r:.0f} rows/s)"
-                            for s, r in zip(strides, rate, strict=True)])  # fmt: skip
+    suffix = {1: "st", 2: "nd", 3: "rd"}
+    ticks = [f"every {s}{suffix.get(s, 'th')} row\n(~{8 * r:.0f} rows/s)"
+             for s, r in zip(strides, rate, strict=True)]  # fmt: skip
+    ax.set_xticks(strides, ticks)
+    ax.set_ylim(0.5, 0.9)  # wide enough that seed noise is not mistaken for a trend
     ax.set_xlim(0.5, max(strides) + 0.5)
     ax.set_ylabel("macro-F1 (pooled LOPO)", fontsize=8, color=INK_2)
     ax.set_title("Stroke-type macro-F1 vs row stride", fontsize=10, color=INK, loc="left")
