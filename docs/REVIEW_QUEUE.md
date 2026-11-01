@@ -22,9 +22,14 @@ Decisions taken while the owner was offline (2026-11-01), each with the more con
 10. **Per-class baseline uses the true stroke class** of the test stroke. *Alternative:* the predicted class from D3. *Why:* the true class makes the baseline stronger, the conservative direction; the verdict is judged against the level-only baseline anyway.
 11. **Baselines use all training players (fit + validation); models use the fit set.** *Why:* the strongest baselines and the D3 model protocol unchanged. Both choices make it harder, not easier, for the models to look good.
 
+### D5
+12. **Cross-group forests use the fit set only** (validation players from the training group are set aside but unused by the RF), so within-group and cross-group are trained the same way as in D3/D4. *Alternative:* fit on all training-group players for cross-group. *Why:* the drop from within-group to cross-group stays a like-for-like comparison.
+13. **Recording-date table added to `docs/DATASET.md`** (D1 card code extended) after finding that level is confounded with recording day. *Why:* it is a dataset fact that every later level result depends on.
+
 ## Open questions for the owner
 1. **Calibration across players:** temperature fitted on 2 inner validation players made ECE worse on every model. A temperature fitted on more players (for example, inner leave-one-player-out over all training players) might transfer better, but that changes the inner protocol, so it was not done.
 2. **Leak check flagged:** mean orientation alone matches the full models. Separating "real racket-angle difference" from "recording-block artifact" would need data the dataset does not have, such as interleaved stroke types within one recording.
 3. **Length check close to its threshold** (+0.085 vs 0.10): worth keeping in mind when reading any model that sees the mask.
 4. **D6 says almost no data is needed** (accelerometer only at about 2 rows per second matches full data), but only because the task is solved through static racket angle. Whether to present this as a positive sparsity result or as a sign the task is too easy for this dataset is a framing choice for the write-up.
 5. **D4 negative result:** no model beats the level-only baseline. Worth deciding whether D8's quality output should be kept in the interface (it is kept, with a note saying it mostly reflects level) or removed.
+6. **Level is confounded with recording day** (all novices on 2019-09-25, all pros on other days). The D5 novice-vs-pro result, and the level-only baseline's strength in D4, may partly reflect session differences. Any skill claim should carry this caveat; separating the two would need novices and pros recorded in the same sessions.

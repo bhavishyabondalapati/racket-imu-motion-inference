@@ -114,6 +114,28 @@ Correlation between criteria (Pearson, used set). These are correlations between
 - Player codes: the CSV writes `NO1`/`PO1` (letter O); the spreadsheets write `#N01`/`#P01`. Both are normalized to `N01`/`P01`.
 - Recording dates (from the timestamps): 2019-09-17, 2019-09-19, 2019-09-22, 2019-09-25.
 
+## Recording dates by player (used set)
+
+| player | level | 2019-09-17 | 2019-09-19 | 2019-09-22 | 2019-09-25 |
+|---|---|---|---|---|---|
+| N01 | novice | 0 | 0 | 0 | 99 |
+| N02 | novice | 0 | 0 | 0 | 42 |
+| N03 | novice | 0 | 0 | 0 | 99 |
+| N04 | novice | 0 | 0 | 0 | 100 |
+| N05 | novice | 0 | 0 | 0 | 80 |
+| N06 | novice | 0 | 0 | 0 | 30 |
+| N07 | novice | 0 | 0 | 0 | 50 |
+| N08 | novice | 0 | 0 | 0 | 50 |
+| P01 | pro | 16 | 0 | 0 | 0 |
+| P02 | pro | 134 | 0 | 0 | 0 |
+| P03 | pro | 60 | 0 | 0 | 0 |
+| P04 | pro | 0 | 140 | 0 | 0 |
+| P05 | pro | 0 | 0 | 115 | 0 |
+| P07 | pro | 0 | 0 | 150 | 0 |
+| P08 | pro | 0 | 0 | 179 | 0 |
+
+Every novice was recorded on one day and every pro on other days, so level is fully confounded with recording session in this dataset.
+
 ## Exclusions
 
 384 of 1728 raw samples are not used. Each is listed under the first rule that excludes it.

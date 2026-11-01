@@ -301,3 +301,27 @@ All numbers below are from `results/d3_20261101T032754Z/report.md`: pooled out-o
 - **Within level:** for novices, the models rank strokes weakly (Spearman 0.13 RF, 0.17 GRU on the mean score; about 0.35 on C3 for both). For pros, the rankings are negative (−0.15 RF, −0.23 GRU). Pro scores are tightly packed (std about 2 points on the mean), so there is little to rank.
 - **Reading the baselines' Spearman:** the global-mean and level-only baselines show strongly negative Spearman (−0.83 overall; −0.72 within novices, −0.59 within pros). This is a known leave-one-out artifact: removing a low-scoring player from training raises the training mean predicted for that player, so predicted and true scores move in opposite directions across folds. It does not mean those baselines are anti-informative within a fold. Their MAE is the meaningful number.
 - **Why, in the light of D3 and D6:** the signal mostly carries static racket orientation, which identifies stroke type well but says little about how well a stroke was played. Coach scores mostly track the player's level (novice mean 70.6, pro mean 93.7; `docs/DATASET.md`).
+
+## D5: Skill level and cross-group generalization (2026-11-01)
+
+### Design
+- **Part 1, novice vs pro:** majority, RF (handcrafted primary features, balanced class weights) and GRU (2 classes, D3 recipe) on the D3 folds. Each test player has one level, so the results are pooled out-of-fold accuracy, balanced accuracy and macro-F1, plus per-player accuracy (owner's instruction), not per-fold F1.
+- **Part 2, cross-group:** the stroke-type RF and the quality RF (one regressor per target), trained on one level and tested on the other. The reference is LOPO **within** the same level. Validation players (2) always come from the training group, chosen with the same preference for players with all three classes. As in D3/D4, the forests are fitted on the fit set only, so within-group and cross-group are trained the same way.
+
+### Results (run `d5_20261101T035811Z`, commit `b89ac1f`)
+| novice vs pro | accuracy | balanced accuracy | macro-F1 |
+|---|---|---|---|
+| Majority | 0.479 | 0.406 | 0.324 |
+| RF | 0.775 ± 0.002 | 0.780 ± 0.002 | 0.772 ± 0.002 |
+| GRU | 0.751 ± 0.023 | 0.754 ± 0.030 | 0.747 ± 0.026 |
+
+| setting | stroke-type macro-F1 | score_mean MAE | score_mean Spearman |
+|---|---|---|---|
+| novices → novices (within-group LOPO) | 0.690 ± 0.013 | 10.27 | 0.063 |
+| pros → novices (cross-group) | 0.767 ± 0.003 | 22.78 | 0.141 |
+| pros → pros (within-group LOPO) | 0.839 ± 0.007 | 2.75 | −0.339 |
+| novices → pros (cross-group) | 0.809 ± 0.014 | 25.09 | −0.071 |
+
+- **Level can be predicted from the signal** (RF macro-F1 0.772 vs majority 0.324), but per-player accuracy varies from 0.51 (N06) to 1.0 (N02), and 0.56 for P08. **Major caveat, found in this milestone:** every novice was recorded on 2019-09-25 and every pro on 2019-09-17, -19 or -22 (`docs/DATASET.md`, "Recording dates by player"). Level is fully confounded with recording session, so part of the level signal may come from session differences (sensor mounting or calibration on that day) rather than skill. LOPO does not remove this, because the held-out novice shares the recording day with the training novices. This dataset cannot separate the two explanations.
+- **Stroke type transfers across levels.** Training on pros and testing on novices gives a *higher* macro-F1 than training on other novices (+0.076). The pro training set is larger and has more push and topspin examples (novices are mostly basic strokes). Training on novices and testing on pros loses only 0.030 against within-pro LOPO. Nothing here suggests a stroke-type model built on one population fails on the other.
+- **Quality does not transfer, as expected from D4.** The quality RF predicts scores typical of its training level: MAE rises by 12.5 points (testing on novices) and 22.4 points (testing on pros). Because scores mostly track level (D4), a quality model trained on one population would be badly miscalibrated on another, which matters for a consumer product whose users are mostly amateurs.
