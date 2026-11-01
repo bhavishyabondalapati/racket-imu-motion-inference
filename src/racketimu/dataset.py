@@ -1,7 +1,8 @@
 """Fixed-length stroke windows (D2) and the arrays models train on.
 
 Each stroke file is one sample. It is padded or cropped to `n_rows` rows with the
-row of peak gyro magnitude at position n_rows // 2, and a mask marks real rows.
+row of peak gyro magnitude at `peak_position` (default n_rows // 2), and a mask
+marks real rows.
 Angles that wrap at ±180° (pitch, yaw) are also given as sin/cos so the inputs
 stay continuous.
 """
@@ -36,18 +37,24 @@ def peak_row(stroke: pd.DataFrame) -> int:
     return int(np.argmax(np.linalg.norm(stroke[io.GYRO].to_numpy(float), axis=1)))
 
 
-def window_bounds(n_stroke: int, peak: int, n_rows: int) -> tuple[int, int, int]:
+def window_bounds(
+    n_stroke: int, peak: int, n_rows: int, peak_position: int | None = None
+) -> tuple[int, int, int]:
     """Source rows [start, stop) to copy, and where they land in the window.
 
-    The peak always lands at position n_rows // 2; rows outside the stroke are padding.
+    The peak lands at `peak_position` (default n_rows // 2); rows outside the stroke
+    are padding.
     """
-    start = peak - n_rows // 2
+    start = peak - (n_rows // 2 if peak_position is None else peak_position)
     src_start, src_stop = max(start, 0), min(start + n_rows, n_stroke)
     return src_start, src_stop, src_start - start
 
 
 def window_stroke(
-    stroke: pd.DataFrame, n_rows: int, channels: list[str] = CHANNELS
+    stroke: pd.DataFrame,
+    n_rows: int,
+    channels: list[str] = CHANNELS,
+    peak_position: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, int]]:
     """Return (values [n_rows, channels], mask [n_rows], info) for one stroke.
 
@@ -57,7 +64,7 @@ def window_stroke(
     if len(stroke) == 0:
         raise ValueError("Cannot window an empty stroke")
     peak = peak_row(stroke)
-    src_start, src_stop, dst = window_bounds(len(stroke), peak, n_rows)
+    src_start, src_stop, dst = window_bounds(len(stroke), peak, n_rows, peak_position)
     values = np.zeros((n_rows, len(channels)), dtype=np.float32)
     mask = np.zeros(n_rows, dtype=bool)
     n_copy = src_stop - src_start
@@ -72,12 +79,13 @@ def build_windows(ds: io.Dataset, window_cfg: dict[str, Any]) -> pd.DataFrame:
     if window_cfg.get("center", "peak_gyro") != "peak_gyro":
         raise ValueError(f"Unsupported window center: {window_cfg['center']!r}")
     n_rows = int(window_cfg["n_rows"])
+    peak_position = int(window_cfg.get("peak_position", n_rows // 2))
     parts = []
     for meta in ds.included()[[*META, "n_rows"]].itertuples(index=False):
         stroke = add_angle_encodings(ds.strokes[meta.sample_id])
-        values, mask, info = window_stroke(stroke, n_rows)
+        values, mask, info = window_stroke(stroke, n_rows, peak_position=peak_position)
         part = pd.DataFrame(values, columns=CHANNELS)
-        part.insert(0, "pos", np.arange(n_rows) - n_rows // 2)  # 0 = peak row
+        part.insert(0, "pos", np.arange(n_rows) - peak_position)  # 0 = peak row
         part.insert(1, "mask", mask)
         for col in reversed([*META, "n_rows"]):
             part.insert(0, col, getattr(meta, col))

@@ -40,6 +40,13 @@ def test_long_stroke_is_cropped_around_the_peak():
     assert info["rows_cropped"] == 42
 
 
+def test_peak_position_moves_the_peak():
+    values, mask, _ = window_stroke(make_stroke(10, peak=3), n_rows=8, peak_position=2)
+    gyro_x = values[:, CHANNELS.index("gyro_x")]
+    assert gyro_x[2] == 1000.0
+    assert gyro_x.tolist()[:3] == [1, 2, 1000] and mask.all()
+
+
 def test_window_bounds_at_both_edges():
     assert window_bounds(n_stroke=5, peak=0, n_rows=8) == (0, 4, 4)
     assert window_bounds(n_stroke=5, peak=4, n_rows=8) == (0, 5, 0)

@@ -38,8 +38,9 @@ channels:                   # model inputs (names from racketimu.io)
   heading: [yaw_sin, yaw_cos, mag_x, mag_y, mag_z]
 
 window:                     # D2
-  n_rows: 32                # pad or crop every stroke to this many rows, with a mask
-  center: peak_gyro         # center the crop on the row with peak gyro magnitude
+  n_rows: 48                # pad or crop every stroke to this many rows, with a mask
+  center: peak_gyro         # align the crop on the row with peak gyro magnitude
+  peak_position: 16         # the peak row lands here (16 before, 31 after); best coverage of 24/16/12
 
 ablation:                   # D6
   row_strides: [1, 2, 4]    # keep every row, every 2nd row, every 4th row

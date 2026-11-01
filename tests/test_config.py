@@ -14,15 +14,16 @@ def test_default_config_has_required_sections():
         assert section in cfg
 
 
-def test_default_window_is_32_rows_with_no_resampling():
+def test_default_window_is_48_rows_with_no_resampling():
     cfg = load_config()
-    assert cfg["window"]["n_rows"] == 32
+    assert cfg["window"]["n_rows"] == 48
+    assert cfg["window"]["peak_position"] == 16
     assert "imu" not in cfg  # no resampling setting: the native rate is kept
 
 
 def test_overrides_replace_only_the_given_keys():
-    cfg = load_config(overrides={"window": {"n_rows": 48}})
-    assert cfg["window"]["n_rows"] == 48
+    cfg = load_config(overrides={"window": {"n_rows": 64}})
+    assert cfg["window"]["n_rows"] == 64
     assert cfg["window"]["center"] == "peak_gyro"  # untouched sibling
 
 
