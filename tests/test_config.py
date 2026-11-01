@@ -14,23 +14,24 @@ def test_default_config_has_required_sections():
         assert section in cfg
 
 
-def test_window_is_one_second_by_default():
-    seg = load_config()["segment"]
-    assert seg["window_pre_s"] + seg["window_post_s"] == pytest.approx(1.0)
+def test_default_window_is_32_rows_with_no_resampling():
+    cfg = load_config()
+    assert cfg["window"]["n_rows"] == 32
+    assert "imu" not in cfg  # no resampling setting: the native rate is kept
 
 
 def test_overrides_replace_only_the_given_keys():
-    cfg = load_config(overrides={"segment": {"window_pre_s": 0.8}})
-    assert cfg["segment"]["window_pre_s"] == 0.8
-    assert cfg["segment"]["window_post_s"] == 0.4  # untouched sibling
+    cfg = load_config(overrides={"window": {"n_rows": 48}})
+    assert cfg["window"]["n_rows"] == 48
+    assert cfg["window"]["center"] == "peak_gyro"  # untouched sibling
 
 
 def test_yaml_file_is_layered_on_defaults(tmp_path: Path):
     extra = tmp_path / "exp.yaml"
-    extra.write_text(yaml.safe_dump({"imu": {"resample_hz": 200}}))
+    extra.write_text(yaml.safe_dump({"ablation": {"row_strides": [1, 3]}}))
     cfg = load_config(extra)
-    assert cfg["imu"]["resample_hz"] == 200
-    assert "segment" in cfg
+    assert cfg["ablation"]["row_strides"] == [1, 3]
+    assert "dataset" in cfg
 
 
 def test_missing_file_raises(tmp_path: Path):

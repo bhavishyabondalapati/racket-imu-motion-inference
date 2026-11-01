@@ -1,7 +1,6 @@
 # All thresholds, window sizes, and seeds live here.
-# Values marked "initial" are starting points chosen before seeing any data;
-# they will be checked against the real dataset in the milestone noted, and any
-# change is recorded in docs/DESIGN.md.
+# Values marked "initial" are starting points chosen before seeing any results;
+# any change is recorded in docs/DESIGN.md.
 
 paths:
   raw: data/raw
@@ -9,18 +8,33 @@ paths:
   processed: data/processed
   results: results
   figures: docs/figures
+  docs: docs
 
 seed: 0                     # global seed for anything not listed below
 seeds: [0, 1, 2]            # deep models are run once per seed (D3, D4, D6)
 
-imu:
-  resample_hz: 100          # common uniform rate after loading (initial; revisit after D1)
+dataset:                    # Tabrizi et al. 2020, see docs/DATASET.md
+  root: data/raw/tabrizi2020
+  units:                    # raw integer -> physical unit (BNO055 defaults, checked in D1)
+    acc_lsb_per_m_s2: 100   # acc raw / 100 = m/s^2
+    gyro_lsb_per_dps: 16    # gyro raw / 16 = deg/s (converted on to rad/s)
+    mag_lsb_per_ut: 16      # mag raw / 16 = microtesla
+  player_overrides:         # sample id -> player, where the sources disagree
+    720: P05                # scores CSV says P06; the spreadsheet range 651-720 says P05
+  stated_rates_hz:          # what the authors' papers say (reported, not used)
+    data_in_brief_2020: 100
+    cin_2021: 70
 
-segment:                    # D2
-  gyro_peak_threshold_rad_s: 8.0  # minimum gyro-magnitude peak height for a stroke (initial)
-  min_peak_spacing_s: 1.5         # two strokes cannot be closer than this (initial)
-  window_pre_s: 0.6               # window starts this long before the peak (initial)
-  window_post_s: 0.4              # window ends this long after the peak (initial)
+lopo:
+  # Not used as a test player by any model that uses acc/gyro (1 usable sample).
+  excluded_test_players: [P06]
+
+window:                     # D2
+  n_rows: 32                # pad or crop every stroke to this many rows, with a mask
+  center: peak_gyro         # center the crop on the row with peak gyro magnitude
+
+ablation:                   # D6
+  row_strides: [1, 2, 4]    # keep every row, every 2nd row, every 4th row
 
 train:                      # D3, D4
   batch_size: 32

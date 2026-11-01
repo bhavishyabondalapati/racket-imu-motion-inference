@@ -11,7 +11,7 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "configs" / "default.yaml"
 
-REQUIRED_SECTIONS = ("paths", "seed", "imu", "segment", "train")
+REQUIRED_SECTIONS = ("paths", "seed", "dataset", "lopo", "window", "train")
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
