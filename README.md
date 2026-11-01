@@ -10,7 +10,7 @@ This project takes a public dataset of table tennis forehands, recorded with a s
 
 The data and its original analysis belong to these authors. This project's contribution is its own evaluation protocol (leave-one-player-out), analysis, ablations, and inference interface. It makes no claim of novelty over the original work. The raw data is not redistributed here: download it from Mendeley Data (see Setup).
 
-> **Status: D2 done (fixed 32-row windows, review figures), awaiting review; D3 (stroke type classification) next.** No models have been trained yet, so there are no results. The data itself is described in [docs/DATASET.md](docs/DATASET.md): 1344 of the authors' 1570 cleaned samples are usable, from 15 players.
+> **Status: D2 done (48-row windows, review figures); D3 (stroke type classification) next.** No models have been trained yet, so there are no results. The data itself is described in [docs/DATASET.md](docs/DATASET.md): 1344 of the authors' 1570 cleaned samples are usable, from 15 players.
 
 ## Results
 
@@ -103,7 +103,7 @@ The remaining pipeline steps (`make preprocess`, … `make report`, `make all`) 
 
 3. **D1, data inspection:** inspected every file before writing code and reported the findings: about 8 rows per second instead of the stated 100 Hz, 223 cleaned samples with no accelerometer or gyroscope data, 5 score criteria (not 3 coaches), and several label spellings. With the owner's decisions, wrote the loader (`io.py`) and the generated dataset card (`make inspect`).
 
-4. **D2, preprocessing:** each stroke file becomes one sample of 32 rows centered on its peak rotation rate, with a mask for padding. Pitch is encoded as sin/cos because it wraps at ±180°. Heading channels (yaw, magnetometer) are kept out of the main input to avoid a shortcut.
+4. **D2, preprocessing:** each stroke file becomes one sample of 48 rows with its peak rotation rate at row 16, with a mask for padding. Pitch is encoded as sin/cos because it wraps at ±180°. Heading channels (yaw, magnetometer) are kept out of the main input to avoid a shortcut.
 
 Later milestones (D3 classification → D9 report) will be added here as they are completed.
 

@@ -159,15 +159,23 @@ Each entry: what was chosen, the alternatives considered, and why. Newest milest
 - **Alternatives:** raw degrees (a model would see a fake 358° jump); unwrapping within each stroke (continuous, but the same orientation can end up as 170° in one stroke and 530° in another).
 - **Why:** sin/cos is continuous everywhere and gives the same values for the same orientation in every stroke. The cost is one extra channel.
 
-### Window: 32 rows, peak gyro row at position 16, zero padding with a mask (owner-approved)
-- `racketimu.dataset.window_stroke` puts the first row of maximum gyro magnitude at index 16 (`pos` 0) and copies the rows around it. Rows outside the stroke are zero with `mask = False`. No scaling here: scaling is fitted inside each training fold in D3 to avoid leakage.
-- **Coverage (from `make preprocess`):** 77.4% of real rows are kept; 664 of 1344 strokes lose some rows, mostly after the peak (`window_coverage.png`). The peak tends to sit early in a stroke (median at 29% of its length).
-- **Measured alternatives:** 32 rows with 8 before the peak keeps 79.3%; 48 rows centered keeps 89.3%; 64 rows centered keeps 93.5%. Kept at the approved 32 for now; the owner reviews this with the figures.
+### Window: 48 rows, peak gyro row at position 16, zero padding with a mask
+- `racketimu.dataset.window_stroke` puts the first row of maximum gyro magnitude at `window.peak_position` (`pos` 0) and copies the rows around it. Rows outside the stroke are zero with `mask = False`. No scaling here: scaling is fitted inside each training fold in D3 to avoid leakage.
+- **First version (approved in review):** 32 rows centered on the peak kept only 77.4% of real rows; 664 of 1344 strokes lost rows, mostly after the peak, because the peak tends to sit early in a stroke (median at 29% of its length).
+- **Comparison (owner's request): 48 rows, peak at three positions, scored on coverage only.** Coverage is the fraction of real rows kept. It uses no labels, so choosing on it cannot leak class information into the design.
 
-### Observations from the figures (facts, recorded for D3 and the limitations)
-- **The peak is the first row in 238 strokes (17.7%):** the file starts at its largest rotation rate, so those strokes have no rows before the peak. The share is similar across classes (Basic 15.6%, Push 21.4%, Topspin 17.9%) and levels (novice 17.3%, pro 18.0%).
-- **Acceleration magnitude stays close to gravity:** median 9.81 m/s², 1st-99th percentile 8.75-11.57 m/s² over all real window rows (max 25.3). So the accelerometer mostly shows the racket's tilt relative to gravity, with little swing acceleration at this rate.
-- **Rotation rates are modest:** the peak gyro magnitude per stroke has a median of 1.22 rad/s (70 deg/s), 95th percentile 3.0 rad/s.
+  | peak position (rows before / after) | real rows kept | strokes losing rows |
+  |---|---|---|
+  | 24 (24 / 23) | 30844 of 34538 = 89.30% | 263 |
+  | **16 (16 / 31)** | **31137 of 34538 = 90.15%** | **223** |
+  | 12 (12 / 35) | 30452 of 34538 = 88.17% | 316 |
+
+- **Chosen:** 48 rows with the peak at position 16 (`window.n_rows: 48`, `window.peak_position: 16`), the highest coverage. It matches the shape of the data: few rows before the peak, more after. The D2 figures were regenerated with this window.
+
+### Finding: the logging rate probably undersamples the swing (interpretation, recorded for D3 and the limitations)
+- **Numbers** (used set, also in `docs/DATASET.md` under "Signal characteristics"): the peak rotation rate per stroke has a median of 1.22 rad/s (70 deg/s), 95th percentile 3.0 rad/s. The acceleration magnitude has a median of 9.81 m/s² and a 1st-99th percentile range of 8.79-11.44 m/s² over all rows, where gravity alone is 9.81. Rows arrive at about 8 per second.
+- **Interpretation, supported by the numbers but not certain:** the logging rate undersamples the fast phase of the stroke, so the signal mostly reflects the racket's orientation rather than swing dynamics. This matters for what the models can learn: stroke type may be recognisable from how the racket is held and turned, while fine timing and speed of the swing are largely invisible.
+- **The peak is on the first row in 238 strokes (17.7%):** the file starts at its largest rotation rate, so those strokes have no rows before the peak. This is a likely sign that recordings sometimes start mid-swing. The share is similar across classes (Basic 15.6%, Push 21.4%, Topspin 17.9%) and levels (novice 17.3%, pro 18.0%).
 - **Class profiles overlap heavily** (`class_profiles.png`): topspin has the highest median peak rotation rate and push the lowest, with wide interquartile bands.
 
 ### `strokes.parquet` is not committed
