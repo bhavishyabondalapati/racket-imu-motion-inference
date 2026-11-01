@@ -146,3 +146,35 @@ Each entry: what was chosen, the alternatives considered, and why. Newest milest
 
 ### `make inspect` writes the dataset card from code
 - `scripts/inspect_dataset.py` → `racketimu.datacard.build_dataset_card`. Every number in `docs/DATASET.md` is computed from the files on each run. When a number cannot be derived, the card says "not computable" instead of failing or guessing. The exploratory scripts used for the first inspection report were not committed; their findings are all reproduced by this code.
+
+## D2: Preprocessing (2026-10-31)
+
+### Heading channels kept out of the primary input (owner's decision)
+- **Chosen:** primary input = acc x/y/z, gyro x/y/z, roll, pitch (as sin/cos, see below): 9 channels (`channels.primary`). Yaw and the magnetometer (`channels.heading`) are used only in a D3 with/without check and a D6 "+ heading" condition.
+- **Why:** yaw and the magnetometer measure absolute heading relative to the room. Each stroke type was recorded in its own block, so if the player faced a slightly different direction per block, heading alone could identify the class. That would be a shortcut that says nothing about stroke shape and would not transfer to a new room or player. D3 also runs a random forest on per-sample channel means only (no motion shape) to test for player or session leakage.
+
+### Pitch (and yaw) as sin/cos
+- **Finding:** pitch jumps by more than 180° between consecutive rows in 163 of 1344 used strokes, and yaw in 145. These are wrap-arounds at ±180° (visible in `docs/figures/d2/examples_roll_pitch.png`, ids 77 and 283), not real motion. Roll stays within ±90° and never wraps.
+- **Chosen:** add `pitch_sin`, `pitch_cos`, `yaw_sin`, `yaw_cos`; the primary input uses the pitch pair instead of raw pitch degrees. Raw degrees stay in `strokes.parquet`.
+- **Alternatives:** raw degrees (a model would see a fake 358° jump); unwrapping within each stroke (continuous, but the same orientation can end up as 170° in one stroke and 530° in another).
+- **Why:** sin/cos is continuous everywhere and gives the same values for the same orientation in every stroke. The cost is one extra channel.
+
+### Window: 32 rows, peak gyro row at position 16, zero padding with a mask (owner-approved)
+- `racketimu.dataset.window_stroke` puts the first row of maximum gyro magnitude at index 16 (`pos` 0) and copies the rows around it. Rows outside the stroke are zero with `mask = False`. No scaling here: scaling is fitted inside each training fold in D3 to avoid leakage.
+- **Coverage (from `make preprocess`):** 77.4% of real rows are kept; 664 of 1344 strokes lose some rows, mostly after the peak (`window_coverage.png`). The peak tends to sit early in a stroke (median at 29% of its length).
+- **Measured alternatives:** 32 rows with 8 before the peak keeps 79.3%; 48 rows centered keeps 89.3%; 64 rows centered keeps 93.5%. Kept at the approved 32 for now; the owner reviews this with the figures.
+
+### Observations from the figures (facts, recorded for D3 and the limitations)
+- **The peak is the first row in 238 strokes (17.7%):** the file starts at its largest rotation rate, so those strokes have no rows before the peak. The share is similar across classes (Basic 15.6%, Push 21.4%, Topspin 17.9%) and levels (novice 17.3%, pro 18.0%).
+- **Acceleration magnitude stays close to gravity:** median 9.81 m/s², 1st-99th percentile 8.75-11.57 m/s² over all real window rows (max 25.3). So the accelerometer mostly shows the racket's tilt relative to gravity, with little swing acceleration at this rate.
+- **Rotation rates are modest:** the peak gyro magnitude per stroke has a median of 1.22 rad/s (70 deg/s), 95th percentile 3.0 rad/s.
+- **Class profiles overlap heavily** (`class_profiles.png`): topspin has the highest median peak rotation rate and push the lowest, with wide interquartile bands.
+
+### `strokes.parquet` is not committed
+- **Chosen:** git-ignore `data/processed/*.parquet`; `make preprocess` rebuilds it in seconds.
+- **Why:** it is a re-packaging of the authors' rows. Keeping it out keeps the README's statement true that the data is not redistributed here (reusers download it from Mendeley Data), and avoids a stale copy drifting from the code. It contains no personal data (anonymous player codes only), so committing it would also be acceptable under the spec.
+- **Format:** long table, one row per (sample, window position): metadata, `pos` (0 = peak row), `mask`, all channels (raw Euler degrees plus sin/cos), `peak_row`, `rows_cropped`. `racketimu.dataset.to_arrays` turns it into `X [N, 32, C]`, `mask [N, 32]`.
+
+### Review figures (`docs/figures/d2/`)
+- 3 example strokes per class (seeded choice from different players, mixing levels) for gyro, acc, and roll/pitch, with padding shaded; per-class median and interquartile band of |gyro| and |acc|; window coverage per position.
+- Colors are the first three categorical slots of the reference palette, validated for colour-vision deficiency. Each series also has its own line style and a legend, so identity never relies on color alone (the third color is low-contrast on white).
