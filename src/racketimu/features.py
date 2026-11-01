@@ -42,30 +42,40 @@ def channel_stats(
 def motion_features(
     x: np.ndarray, mask: np.ndarray, channels: list[str]
 ) -> tuple[np.ndarray, list[str]]:
-    """Peak angular velocity, window energy, orientation change (needs acc, gyro, roll, pitch)."""
-    idx = {c: channels.index(c) for c in channels}
+    """Peak angular velocity, window energy, and orientation change.
+
+    Each group is computed only if its channels are present (gyro x/y/z, acc x/y/z,
+    roll, pitch sin/cos), so channel subsets in the D6 ablation work too.
+    """
+    idx = {c: i for i, c in enumerate(channels)}
     xm = _masked(x, mask)
-    gyro = np.linalg.norm(xm[:, :, [idx[c] for c in io.GYRO]], axis=2)
-    acc = np.linalg.norm(xm[:, :, [idx[c] for c in io.ACC]], axis=2)
-    roll_first, roll_last = _first_last(x[:, :, idx["roll_deg"]], mask)
-    pitch = np.arctan2(x[:, :, idx["pitch_sin"]], x[:, :, idx["pitch_cos"]])
-    pitch_first, pitch_last = _first_last(pitch, mask)
-    pitch_change = np.degrees(np.angle(np.exp(1j * (pitch_last - pitch_first))))
-    roll_path = np.nansum(np.abs(np.diff(xm[:, :, idx["roll_deg"]], axis=1)), axis=1)
-    pitch_steps = np.angle(np.exp(1j * np.diff(np.where(mask, pitch, np.nan), axis=1)))
-    feats = {
-        "gyro_mag_peak": np.nanmax(gyro, axis=1),
-        "gyro_mag_mean": np.nanmean(gyro, axis=1),
-        "gyro_energy": np.nanmean(gyro**2, axis=1),
-        "acc_mag_mean": np.nanmean(acc, axis=1),
-        "acc_mag_std": np.nanstd(acc, axis=1),
-        "acc_mag_peak": np.nanmax(acc, axis=1),
-        "acc_dynamic_energy": np.nanmean((acc - GRAVITY) ** 2, axis=1),
-        "roll_change": roll_last - roll_first,
-        "pitch_change": pitch_change,
-        "roll_path": roll_path,
-        "pitch_path": np.degrees(np.nansum(np.abs(pitch_steps), axis=1)),
-    }
+    feats: dict[str, np.ndarray] = {}
+    if all(c in idx for c in io.GYRO):
+        gyro = np.linalg.norm(xm[:, :, [idx[c] for c in io.GYRO]], axis=2)
+        feats["gyro_mag_peak"] = np.nanmax(gyro, axis=1)
+        feats["gyro_mag_mean"] = np.nanmean(gyro, axis=1)
+        feats["gyro_energy"] = np.nanmean(gyro**2, axis=1)
+    if all(c in idx for c in io.ACC):
+        acc = np.linalg.norm(xm[:, :, [idx[c] for c in io.ACC]], axis=2)
+        feats["acc_mag_mean"] = np.nanmean(acc, axis=1)
+        feats["acc_mag_std"] = np.nanstd(acc, axis=1)
+        feats["acc_mag_peak"] = np.nanmax(acc, axis=1)
+        feats["acc_dynamic_energy"] = np.nanmean((acc - GRAVITY) ** 2, axis=1)
+    has_roll, has_pitch = "roll_deg" in idx, "pitch_sin" in idx and "pitch_cos" in idx
+    if has_roll:
+        roll_first, roll_last = _first_last(x[:, :, idx["roll_deg"]], mask)
+        feats["roll_change"] = roll_last - roll_first
+    if has_pitch:
+        pitch = np.arctan2(x[:, :, idx["pitch_sin"]], x[:, :, idx["pitch_cos"]])
+        pitch_first, pitch_last = _first_last(pitch, mask)
+        feats["pitch_change"] = np.degrees(np.angle(np.exp(1j * (pitch_last - pitch_first))))
+    if has_roll:
+        feats["roll_path"] = np.nansum(np.abs(np.diff(xm[:, :, idx["roll_deg"]], axis=1)), axis=1)
+    if has_pitch:
+        steps = np.angle(np.exp(1j * np.diff(np.where(mask, pitch, np.nan), axis=1)))
+        feats["pitch_path"] = np.degrees(np.nansum(np.abs(steps), axis=1))
+    if not feats:
+        return np.empty((len(x), 0)), []
     return np.column_stack(list(feats.values())), list(feats)
 
 

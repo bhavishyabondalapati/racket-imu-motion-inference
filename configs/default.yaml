@@ -44,6 +44,8 @@ window:                     # D2
 
 ablation:                   # D6
   row_strides: [1, 2, 4]    # keep every row, every 2nd row, every 4th row
+  window_fractions: [1.0, 0.75, 0.5]  # of window.n_rows, peak kept at the same relative position
+  deep_model: gru           # best deep model in D3 (highest mean pooled macro-F1; tied with CNN)
 
 classify:                   # D3
   # Inner validation (early stopping + temperature scaling): players taken from the

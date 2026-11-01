@@ -263,3 +263,62 @@ def plot_reliability(tables: dict[str, dict[str, pd.DataFrame]], out: Path) -> N
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150, facecolor=SURFACE)
     plt.close(fig)
+
+
+def plot_f1_vs_stride(summary: pd.DataFrame, cfg: dict, deep: str, out: Path) -> None:
+    """Macro-F1 against row stride (mean ± std over seeds), RF and the deep model."""
+    rate = 1.0 / np.array(cfg["ablation"]["row_strides"], dtype=float)
+    fig, ax = plt.subplots(figsize=(6, 3.6))
+    fig.patch.set_facecolor(SURFACE)
+    _style_axes(ax)
+    ax.lines[-1].remove()  # no peak marker on this chart
+    for k, (model, label) in enumerate([("rf", "Random forest"), (deep, deep.upper())]):
+        s = summary[
+            (summary["model"] == model) & summary["condition"].str.match(r"^(full|stride_\d+)$")
+        ]
+        stride = s["condition"].map(lambda c: 1 if c == "full" else int(c.split("_")[1]))
+        order = np.argsort(stride.to_numpy())
+        ax.errorbar(stride.to_numpy()[order], s["f1_mean"].to_numpy()[order],
+                    yerr=s["f1_std"].to_numpy()[order], color=SERIES[k], linestyle=STYLES[k],
+                    linewidth=2, marker="o", markersize=6, capsize=3, label=label)  # fmt: skip
+    strides = cfg["ablation"]["row_strides"]
+    ax.set_xticks(strides, [f"every {s}{'st' if s == 1 else 'th'} row\n(~{8 * r:.0f} rows/s)"
+                            for s, r in zip(strides, rate, strict=True)])  # fmt: skip
+    ax.set_xlim(0.5, max(strides) + 0.5)
+    ax.set_ylabel("macro-F1 (pooled LOPO)", fontsize=8, color=INK_2)
+    ax.set_title("Stroke-type macro-F1 vs row stride", fontsize=10, color=INK, loc="left")
+    ax.legend(fontsize=8, frameon=False)
+    fig.tight_layout()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def plot_ablation_deltas(rf_summary: pd.DataFrame, out: Path) -> None:
+    """Horizontal bars: change in RF macro-F1 from full data, per condition (± std over seeds)."""
+    s = rf_summary[rf_summary["condition"] != "full"].sort_values("delta_mean")
+    fig, ax = plt.subplots(figsize=(7, 0.42 * len(s) + 1.2))
+    fig.patch.set_facecolor(SURFACE)
+    ax.set_facecolor(SURFACE)
+    ax.grid(True, axis="x", color=GRID, linewidth=0.6)
+    ax.set_axisbelow(True)
+    y = np.arange(len(s))
+    ax.barh(y, s["delta_mean"], xerr=s["delta_std"], color=SERIES[0], height=0.6,
+            error_kw={"ecolor": MUTED, "capsize": 2, "linewidth": 1})  # fmt: skip
+    ax.axvline(0, color=MUTED, linewidth=0.8)
+    ax.set_yticks(y, s["label"], fontsize=8, color=INK_2)
+    for yi, v in zip(y, s["delta_mean"], strict=True):
+        ax.text(v + (0.005 if v >= 0 else -0.005), yi, f"{v:+.3f}", va="center",
+                ha="left" if v >= 0 else "right", fontsize=8, color=INK)  # fmt: skip
+    for side in ("top", "right", "left"):
+        ax.spines[side].set_visible(False)
+    ax.spines["bottom"].set_color(MUTED)
+    ax.tick_params(axis="x", colors=MUTED, labelsize=8)
+    ax.set_xlabel("change in macro-F1 from full data (random forest)", fontsize=8, color=INK_2)
+    ax.set_title("Which reductions hurt most", fontsize=10, color=INK, loc="left")
+    lo = min(s["delta_mean"].min() - s["delta_std"].max() - 0.05, -0.05)
+    ax.set_xlim(lo, max(0.05, s["delta_mean"].max() + 0.05))
+    fig.tight_layout()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150, facecolor=SURFACE)
+    plt.close(fig)

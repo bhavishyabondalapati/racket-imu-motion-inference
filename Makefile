@@ -47,7 +47,7 @@ quality:
 skill:
 	$(call not_yet,D5)
 ablation:
-	$(call not_yet,D6)
+	$(PYTHON) scripts/run_ablation.py
 errors:
 	$(call not_yet,D7)
 latency:

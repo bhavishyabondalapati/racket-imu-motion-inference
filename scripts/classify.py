@@ -8,59 +8,26 @@ from __future__ import annotations
 
 import argparse
 import json
-import platform
-import subprocess
 import sys
 import time
-from datetime import UTC, datetime
 
-import numpy as np
 import pandas as pd
-import sklearn
-import torch
-import yaml
 
 from racketimu import classify_report as rep
 from racketimu.classify import CLASSES, run_all
 from racketimu.config import PROJECT_ROOT, load_config
 from racketimu.evaluate import reliability_table
 from racketimu.plots import plot_confusions, plot_reliability
+from racketimu.runinfo import git_state, new_run_dir, provenance_line, write_run_files
 
 MAIN_MODELS = ["majority", "rf_primary", "cnn", "gru"]
-
-
-def git_info() -> dict:
-    def run(*args):
-        out = subprocess.run(["git", *args], cwd=PROJECT_ROOT, capture_output=True, text=True)
-        return out.stdout
-
-    changed = [line[3:] for line in run("status", "--porcelain").splitlines() if line.strip()]
-    return {"commit": run("rev-parse", "HEAD").strip(), "dirty": bool(changed), "changed": changed}
-
-
-def run_info(cfg: dict, seconds: float) -> dict:
-    return {
-        **git_info(),
-        "duration_s": round(seconds, 1),
-        "device": cfg["train"]["device"],
-        "machine": platform.machine(),
-        "processor": platform.processor(),
-        "system": platform.platform(),
-        "python": platform.python_version(),
-        "torch": torch.__version__,
-        "sklearn": sklearn.__version__,
-        "numpy": np.__version__,
-        "pandas": pd.__version__,
-        "torch_threads": torch.get_num_threads(),
-    }
 
 
 def write_report(out, oof, seed_metrics, checks, folds, cfg, info) -> None:
     lines = [
         f"# D3 stroke-type classification: {out.name}",
         "",
-        f"Commit `{info['commit'][:10]}`{' (uncommitted changes)' if info['dirty'] else ''}; "
-        f"device {info['device']}; {info['processor'] or info['machine']}; {info['duration_s']} s.",
+        provenance_line(info),
         "",
         f"Protocol: LOPO over {len(folds)} test players (not used as test players: "
         f"{', '.join(cfg['lopo']['excluded_test_players'])}). In each fold, 1 novice and 1 pro "
@@ -127,17 +94,13 @@ def main() -> int:
     if not windows_path.exists():
         print(f"ERROR: {windows_path} not found. Run `make preprocess` first.", file=sys.stderr)
         return 1
-    start = time.time()
+    git, start = git_state(), time.time()
     oof, folds = run_all(pd.read_parquet(windows_path), cfg)
-    info = run_info(cfg, time.time() - start)
-
-    out = PROJECT_ROOT / cfg["paths"]["results"] / f"d3_{datetime.now(UTC):%Y%m%dT%H%M%SZ}"
-    out.mkdir(parents=True)
+    out = new_run_dir(cfg, "d3")
+    info = write_run_files(out, cfg, git, time.time() - start)
     oof.to_csv(out / "oof_predictions.csv.gz", index=False)
     seed_metrics = rep.per_seed_metrics(oof, cfg["classify"]["ece_bins"])
     checks = rep.shortcut_checks(seed_metrics, oof, cfg)
-    (out / "config.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False, allow_unicode=True))
-    (out / "run.json").write_text(json.dumps(info, indent=2))
     metrics = {
         "per_seed": seed_metrics.to_dict("records"),
         "checks": checks,
