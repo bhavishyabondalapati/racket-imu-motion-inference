@@ -73,7 +73,8 @@ M0 (scaffold, CI, config, seeding, CPU-default device) is complete and stays as 
 ### D2: Preprocessing
 
 - Strokes are already one per file, so no segmentation. At about 9 rows per second there is no peak-based time window: each stroke file is one sample, padded or cropped to a fixed number of rows (configurable, default 32) centered on the row with peak gyro magnitude, with a mask marking real rows.
-- No world-frame or gravity-removal transform, because the Euler angle order is not documented. Inputs are sensor-frame acceleration and angular velocity (converted units) and the Euler angles as separate channels. Record this in DESIGN.md.
+- No world-frame or gravity-removal transform, because the Euler angle order is not documented. Inputs are sensor-frame acceleration and angular velocity (converted units) and Euler angles as separate channels. Record this in DESIGN.md.
+- **Primary input channels: acc x/y/z, gyro x/y/z, roll, pitch (8 channels).** Yaw and the magnetometer measure absolute heading, which may differ between recording blocks and so leak the stroke class (a shortcut, not stroke shape). They are kept in `strokes.parquet` but used only in the D3 heading check and the D6 "+ heading" condition.
 - Save `data/processed/strokes.parquet`. Commit it only if it contains no personal data; otherwise git-ignore it.
 - Accept when: plots of a few strokes per class look sensible (saved to `docs/figures/`).
 
@@ -84,6 +85,9 @@ M0 (scaffold, CI, config, seeding, CPU-default device) is complete and stays as 
 - Protocol: outer LOPO (15 folds; P06 is not a test player), with an inner validation split by player for early stopping and temperature scaling.
 - Metrics: accuracy, macro-F1, confusion matrix (pooled out-of-fold predictions), per-fold results, per-player and per-level (novice vs pro) breakdowns.
 - Calibration: expected calibration error before and after temperature scaling, plus a reliability diagram.
+- Shortcut checks (random forest, same LOPO protocol):
+  - Heading check: run with and without yaw + magnetometer and report the difference. If adding them improves results noticeably, flag it in DESIGN.md as a likely shortcut, not a real gain.
+  - Player/session leak check: a random forest on only the per-sample mean of each channel (no motion shape). If it scores well above the majority baseline under LOPO, report it.
 - Accept when: results are saved under `results/<run_id>/` with the config, commit hash, and metrics JSON.
 
 ### D4: Stroke quality estimation
@@ -106,7 +110,7 @@ M0 (scaffold, CI, config, seeding, CPU-default device) is complete and stays as 
 Re-run the best stroke-type model and the best quality model under LOPO with:
 
 - sampling rate: keep every row, every 2nd row, and every 4th row (native is about 9 rows per second)
-- sensors: accelerometer only, gyroscope only, accelerometer + gyroscope, all including magnetometer and orientation
+- sensors: accelerometer only, gyroscope only, accelerometer + gyroscope, primary (acc + gyro + roll + pitch), and primary + heading (yaw + magnetometer; reported as a shortcut check, not as the best model)
 - window length: 100%, 75%, 50% of default
 
 Report each condition against the full-data result, mean ± std over seeds, and plot performance against sampling rate. State which reductions hurt most.

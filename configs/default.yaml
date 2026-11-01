@@ -30,6 +30,12 @@ lopo:
   # acc/gyro samples once ID 720 is assigned to P05.
   excluded_test_players: [P06]
 
+channels:                   # model inputs (names from racketimu.io)
+  primary: [acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, roll_deg, pitch_deg]
+  # Absolute heading: may differ between recording blocks and leak the class.
+  # Used only in the D3 heading check and the D6 "+ heading" condition.
+  heading: [yaw_deg, mag_x, mag_y, mag_z]
+
 window:                     # D2
   n_rows: 32                # pad or crop every stroke to this many rows, with a mask
   center: peak_gyro         # center the crop on the row with peak gyro magnitude
