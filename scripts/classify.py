@@ -31,14 +31,11 @@ MAIN_MODELS = ["majority", "rf_primary", "cnn", "gru"]
 
 def git_info() -> dict:
     def run(*args):
-        return subprocess.run(
-            ["git", *args], cwd=PROJECT_ROOT, capture_output=True, text=True
-        ).stdout
+        out = subprocess.run(["git", *args], cwd=PROJECT_ROOT, capture_output=True, text=True)
+        return out.stdout
 
-    return {
-        "commit": run("rev-parse", "HEAD").strip(),
-        "dirty": bool(run("status", "--porcelain").strip()),
-    }
+    changed = [line[3:] for line in run("status", "--porcelain").splitlines() if line.strip()]
+    return {"commit": run("rev-parse", "HEAD").strip(), "dirty": bool(changed), "changed": changed}
 
 
 def run_info(cfg: dict, seconds: float) -> dict:

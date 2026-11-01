@@ -186,3 +186,44 @@ Each entry: what was chosen, the alternatives considered, and why. Newest milest
 ### Review figures (`docs/figures/d2/`)
 - 3 example strokes per class (seeded choice from different players, mixing levels) for gyro, acc, and roll/pitch, with padding shaded; per-class median and interquartile band of |gyro| and |acc|; window coverage per position.
 - Colors are the first three categorical slots of the reference palette, validated for colour-vision deficiency. Each series also has its own line style and a legend, so identity never relies on color alone (the third color is low-contrast on white).
+
+## D3: Stroke type classification (2026-10-31)
+
+### Protocol
+- **Outer loop:** LOPO over the 15 players with usable samples (P06 has none). The test player's samples are only ever used for prediction.
+- **Inner validation:** in each fold, 1 novice and 1 pro are taken out of the training players as a validation set (`classify.inner_val_players`). Players with all three classes are preferred, so early stopping and temperature scaling see every class. The pick depends only on `seed + fold index`, so every model and seed in a fold uses the same split, which keeps comparisons fair.
+- **Same split for every model:** random forests are also fitted on the fit set only (training players minus validation players), and their temperature is fitted on the validation players. This costs the forest some training data, but every model is then trained, calibrated, and tested the same way.
+- **No leakage:** handcrafted features are computed per sample; scaling (deep models) is fitted on fit-set real rows only and padded rows are reset to zero afterwards; hyperparameters are fixed in the config, not tuned on any fold.
+
+### Class weighting
+- **Chosen:** `class_weight: balanced` for the forests and the same inverse-frequency weights in the deep models' cross-entropy, computed on each fold's fit set.
+- **Why:** the headline metric is macro-F1 and the classes are imbalanced (672 basic, 364 push, 308 topspin). Without weights, models drift toward predicting basic. The majority baseline is left unweighted, as the reference for "no learning".
+
+### Features for the random forests (`racketimu.features`)
+- Per channel over real rows: mean, std, min, max. Motion features: peak, mean, and energy of gyro magnitude; mean, std, and peak of acceleration magnitude and its energy around gravity; roll and pitch change from first to last real row; total roll and pitch path. Pitch differences are wrapped, so a crossing of ±180° counts as a small change.
+- **Deliberately not included:** the number of real rows. Stroke file length differs by class (basic files are shorter; see `docs/figures/d2/window_coverage.png`), and length reflects how the files were cut as much as the motion. It is tested separately in the length check instead.
+
+### Models
+- **1D CNN:** two convolutions (32 and 64 channels, kernel 5), ReLU, masked mean over real rows, dropout 0.2, linear head. **GRU:** one layer (64 hidden units), masked mean over real rows, dropout 0.2, linear head. Both get the mask as an extra input channel.
+- **Training:** Adam (learning rate 0.001), batch 32, up to 200 epochs, early stopping on validation loss with patience 20, best epoch restored. CPU, 3 seeds.
+- **Why so small:** about 1000 training samples per fold. Larger models would mostly memorise players.
+
+### Calibration
+- Temperature scaling, fitted per fold on the inner validation players by minimising negative log-likelihood. For the forests it is applied to log-probabilities (probabilities clipped at 1e-6), so the same method works for every model. Temperature never changes the predicted class, only the confidence.
+- ECE uses 15 equal-width bins on the top-class confidence, over pooled out-of-fold predictions.
+
+### Metrics
+- Overall accuracy, macro-F1, and the confusion matrix come from pooled out-of-fold predictions (owner-approved), reported as mean ± std over 3 seeds.
+- Per test player, macro-F1 is averaged over **the classes that player has**, because 5 of the 15 test players have only basic strokes or only two classes. These per-player numbers show spread; they are not comparable to the pooled number.
+
+### Shortcut checks, with decision rules fixed before the run
+- **Heading check:** the handcrafted forest with and without yaw + magnetometer features. A pooled macro-F1 gain of at least 0.02 counts as "noticeable" and is flagged as a likely shortcut.
+- **Leak check:** a forest on the per-sample mean of each primary channel only (no motion shape). A macro-F1 at least 0.10 above the majority baseline counts as "well above". **Caveat fixed in advance:** channel means also encode the racket's average orientation, which can be a genuine difference between stroke types. A high score is a warning sign, not proof of leakage.
+- **Length check (added after D2):** a forest on the real-row count only. Same 0.10 rule.
+- Thresholds live in `classify.checks` and were committed before the first run.
+
+### "Best model" for later milestones
+- Choosing the best model by its LOPO test score, as D4 and D6 ask, is a small optimistic bias, because the selection uses the test folds. It is acceptable for picking which model to study further, but the chosen model's score should not be read as a clean estimate. This is noted wherever the best model is used.
+
+### Results layout (`results/<run_id>/`)
+- `report.md` (all tables), `metrics.json` (per-seed metrics, checks, confusion counts), `oof_predictions.csv.gz` (every out-of-fold prediction with raw and calibrated probabilities), `config.yaml`, `run.json` (git commit, dirty flag, hardware, versions, duration), `confusion.png`, `reliability.png`. These are committed: they are small, contain no raw data, and the README must cite them.
