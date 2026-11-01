@@ -249,6 +249,9 @@ LIMITATIONS = [
     "Classification relies on static racket angle: channel means alone match the full models; "
     "a recording-block artifact cannot be ruled out because each stroke type was recorded in its "
     "own block.",
+    "Level is fully confounded with recording day: all novices were recorded on 2019-09-25, "
+    "all pros on other days. Novice-vs-pro accuracy (D5) may partly reflect session "
+    "differences such as sensor mounting.",
     "Coach scores are averages of 3 coaches per criterion, so coach agreement (a ceiling for "
     "quality prediction) cannot be computed. Scores depend strongly on level.",
     "Temperature scaling fitted on 2 inner validation players did not transfer to unseen players; "

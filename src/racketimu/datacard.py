@@ -253,6 +253,18 @@ def _checks_section(index: pd.DataFrame, processed: dict[str, Any], dates: list[
     ]
 
 
+def _dates_by_player(inc: pd.DataFrame, strokes: dict[int, pd.DataFrame]) -> pd.DataFrame:
+    """Strokes per player and recording date (from each stroke's first timestamp)."""
+    dates = []
+    for i in inc["sample_id"]:
+        t = strokes[i]["time"].dropna()
+        dates.append(str(t.iloc[0].date()) if len(t) else "unknown")
+    table = pd.crosstab(
+        [inc["level"], inc["player"]], pd.Series(dates, index=inc.index, name="date")
+    )
+    return table.reset_index().set_index("player")
+
+
 def build_dataset_card(ds: io.Dataset, files: io.DatasetFiles, cfg: dict[str, Any]) -> str:
     """Return the full Markdown text of docs/DATASET.md."""
     index, inc = ds.index, ds.included()
@@ -313,6 +325,10 @@ def build_dataset_card(ds: io.Dataset, files: io.DatasetFiles, cfg: dict[str, An
         "",
         "## Data checks", "", *_checks_section(index, processed_matches_raw(files, index), dates),
         "",
+        "## Recording dates by player (used set)", "",
+        md_table(_dates_by_player(inc, ds.strokes)), "",
+        "Every novice was recorded on one day and every pro on other days, so level is fully "
+        "confounded with recording session in this dataset.", "",
         "## Exclusions", "",
         f"{(~index['included']).sum()} of {len(index)} raw samples are not used. Each is listed "
         "under the first rule that excludes it.", "",
