@@ -43,7 +43,7 @@ The owner downloads the files manually into `data/raw/tabrizi2020/`. Raw data is
 - Exclude the 3 empty raw files and the 223 files whose accelerometer and gyroscope are zero in every row, leaving 1344 samples. List every exclusion with its reason in `docs/DATASET.md`.
 - Keep exact duplicate rows, and report the duplicate rate.
 - Sample 720: follow the spreadsheet (player P05), not the scores CSV (P06), and note it.
-- Any model that uses accelerometer or gyroscope data uses 15 LOPO folds: P06 has 1 usable sample and is not used as a test player. Report which stroke classes each player has (e.g. P01 has basics only).
+- Any model that uses accelerometer or gyroscope data uses 15 LOPO folds: P06 is not used as a test player. (Its only usable sample was ID 720, which the spreadsheet assigns to P05, so P06 has no usable acc/gyro samples at all.) Report which stroke classes each player has (e.g. P01 has basics only).
 - Pool out-of-fold predictions for the overall confusion matrix and macro-F1, and report per-fold results alongside.
 
 ## Ground rules (non-negotiable)

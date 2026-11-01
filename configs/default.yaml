@@ -26,7 +26,8 @@ dataset:                    # Tabrizi et al. 2020, see docs/DATASET.md
     cin_2021: 70
 
 lopo:
-  # Not used as a test player by any model that uses acc/gyro (1 usable sample).
+  # Not used as a test player by any model that uses acc/gyro: P06 has no usable
+  # acc/gyro samples once ID 720 is assigned to P05.
   excluded_test_players: [P06]
 
 window:                     # D2
