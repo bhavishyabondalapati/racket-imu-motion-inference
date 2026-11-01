@@ -1,11 +1,13 @@
-"""Public inference interface (D8): one stroke in, stroke type and quality estimate out.
+"""Public inference interface (D8): one stroke in, stroke type out.
 
-The deployed models are the D3 random forest (stroke type) and the D4 random-forest
-regressors (quality), retrained on every usable sample by `make train-final`.
+The deployed model is the D3 random forest (stroke type), retrained on every usable
+sample by `make train-final`. A quality estimate (the D4 random-forest regressors) is
+available only on explicit request, because it does not beat a level-only baseline.
 
 CLI:
     python -m racketimu.infer --player P04 --out p04.json
     python -m racketimu.infer --csv data/raw/tabrizi2020/Raw/Sensory-Data/77.csv
+    python -m racketimu.infer --player P04 --experimental-quality
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from racketimu.features import handcrafted_features
 
 INPUT_COLUMNS = [*io.ACC, *io.GYRO, "roll_deg", "pitch_deg"]  # order expected in imu_window
 QUALITY_TARGETS = [*io.CRITERIA, "score_mean"]
+QUALITY_WARNING = "does not beat a level-only baseline; experimental"
 MODEL_FILE = "stroke_models.joblib"
 
 
@@ -39,9 +42,18 @@ class InferenceResult:
     probabilities: dict[str, float]  # per class, uncalibrated, sums to 1
     confidence: float  # probability of the predicted class
     confidence_is_calibrated: bool  # False: temperature scaling did not transfer (see D3)
-    quality: dict[str, float]  # predicted coach scores C1-C5 and score_mean (0-100)
-    quality_note: str  # how far the quality estimate can be trusted (from D4)
     rows_used: int  # real rows in the model window after any rate reduction
+    # Only with experimental_quality=True. Does not beat a level-only baseline (D4).
+    quality: dict[str, float] | None = None  # predicted coach scores C1-C5, score_mean
+    quality_note: str | None = None
+
+    def to_dict(self) -> dict:
+        """As a plain dict, leaving out the quality fields when they were not requested."""
+        out = asdict(self)
+        if self.quality is None:
+            out.pop("quality")
+            out.pop("quality_note")
+        return out
 
 
 @dataclass
@@ -84,8 +96,13 @@ def load_models(path: str | Path | None = None) -> StrokeModels:
     return joblib.load(path)
 
 
-def infer(imu_window: np.ndarray, fs: float, models: StrokeModels | None = None) -> InferenceResult:
-    """Classify one forehand and estimate its coach quality scores.
+def infer(
+    imu_window: np.ndarray,
+    fs: float,
+    models: StrokeModels | None = None,
+    experimental_quality: bool = False,
+) -> InferenceResult:
+    """Classify one forehand (Basic, Push or Topspin).
 
     Args:
         imu_window: one stroke's sensor rows, shape [T, 8], columns in this order:
@@ -94,10 +111,12 @@ def infer(imu_window: np.ndarray, fs: float, models: StrokeModels | None = None)
         fs: rows per second of `imu_window`. The models were trained at about 8 rows/s;
             higher rates are reduced by keeping every k-th row.
         models: loaded models (defaults to `models/stroke_models.joblib`).
+        experimental_quality: also return predicted coach scores. Off by default: the
+            quality estimate does not beat a level-only baseline (D4); experimental.
 
     Returns:
         InferenceResult with the stroke type, per-class probabilities, the
-        (uncalibrated) confidence, and predicted scores.
+        (uncalibrated) confidence, and, only if requested, predicted scores.
 
     Example:
         >>> import numpy as np
@@ -120,16 +139,17 @@ def infer(imu_window: np.ndarray, fs: float, models: StrokeModels | None = None)
     probs = models.classifier.predict_proba(feats)[0]
     classes = [str(c) for c in models.classifier.classes_]
     k = int(np.argmax(probs))
-    quality = {t: float(r.predict(feats)[0]) for t, r in models.regressors.items()}
-    return InferenceResult(
+    result = InferenceResult(
         stroke_type=classes[k],
         probabilities={c: float(p) for c, p in zip(classes, probs, strict=True)},
         confidence=float(probs[k]),
         confidence_is_calibrated=False,
-        quality=quality,
-        quality_note=models.quality_note,
         rows_used=rows,
     )
+    if experimental_quality:
+        result.quality = {t: float(r.predict(feats)[0]) for t, r in models.regressors.items()}
+        result.quality_note = f"{QUALITY_WARNING}. {models.quality_note}"
+    return result
 
 
 def stroke_to_window(stroke: pd.DataFrame) -> np.ndarray:
@@ -143,6 +163,8 @@ def _cli(argv: list[str] | None = None) -> int:
     group.add_argument("--player", help="player code, e.g. P04 (all their used strokes)")
     group.add_argument("--csv", help="one raw stroke CSV in the dataset's format")
     parser.add_argument("--out", help="output JSON path (default: stdout)")
+    parser.add_argument("--experimental-quality", action="store_true",
+                        help=f"also predict coach scores ({QUALITY_WARNING})")  # fmt: skip
     parser.add_argument("--config", default=None)
     args = parser.parse_args(argv)
     cfg = load_config(args.config)
@@ -150,7 +172,8 @@ def _cli(argv: list[str] | None = None) -> int:
     fs = models.train_rate_hz
     if args.csv:
         stroke = io.to_physical(io.read_raw_table(Path(args.csv)), cfg["dataset"]["units"])
-        items = [{"file": args.csv, **asdict(infer(stroke_to_window(stroke), fs, models))}]
+        result = infer(stroke_to_window(stroke), fs, models, args.experimental_quality)
+        items = [{"file": args.csv, **result.to_dict()}]
         note = (
             "The models were trained on every usable sample of the Tabrizi et al. (2020) "
             "dataset; if this file comes from that dataset, the prediction is in-sample."
@@ -162,15 +185,14 @@ def _cli(argv: list[str] | None = None) -> int:
         if rows.empty:
             print(f"ERROR: no used strokes for player {args.player}", file=sys.stderr)
             return 1
-        items = [
-            {
-                "sample_id": int(r.sample_id),
-                "true_stroke": r.stroke,
-                "true_score_mean": float(r.score_mean),
-                **asdict(infer(stroke_to_window(ds.strokes[r.sample_id]), fs, models)),
-            }
-            for r in rows.itertuples()
-        ]
+        items = []
+        for r in rows.itertuples():
+            result = infer(stroke_to_window(ds.strokes[r.sample_id]), fs, models,
+                           args.experimental_quality)  # fmt: skip
+            item = {"sample_id": int(r.sample_id), "true_stroke": r.stroke}
+            if args.experimental_quality:
+                item["true_score_mean"] = float(r.score_mean)
+            items.append({**item, **result.to_dict()})
         note = (
             "These models were trained on all usable players, including this one, so these "
             "predictions are in-sample. Unseen-player performance is in the D3/D4 reports."

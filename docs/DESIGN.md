@@ -359,3 +359,9 @@ All numbers below are from `results/d3_20261101T032754Z/report.md`: pooled out-o
 - `make report` builds `results/SUMMARY.md` only from the saved result files: the latest run of each milestone, listed with its commit and whether the tree was clean (all five are clean). It also redraws the two D6 figures into `docs/figures/d6/` from the saved D6 metrics. This fixes a label bug ("2th") and gives the stride chart a 0.5-0.9 y-axis, so seed noise is not mistaken for a trend. The numbers are unchanged; the results folder itself is never edited.
 - The README results section was filled in from `SUMMARY.md`, with figures. The dataset citation stays at the top, and the limitations include every item required by the spec plus those found along the way: level confounded with recording day, uncalibrated confidences, and selection of the best model on LOPO scores.
 - No `v0.1` tag was created, on the owner's instruction (the owner tags after review).
+
+### D8 revision after review: quality is opt-in (owner's decision, 2026-11-01)
+- The default `infer()` output and the CLI now contain only the stroke type, per-class probabilities, the uncalibrated confidence, and the rows used. The quality estimate is returned only with `experimental_quality=True` (CLI `--experimental-quality`). The flag is documented, and its note in the result starts with "does not beat a level-only baseline; experimental".
+- **Why:** D4 showed that the quality models do not beat a baseline that only knows the player's level, so returning a score by default would suggest an ability the evaluation does not support. The D4 results, code, and the trained regressors are kept so the finding stays reproducible.
+- The flag does not change the stroke-type prediction (tested). Latency is re-measured for the default output.
+- Calibration (open question 1): the owner decided not to refit the temperature on more players; the D3 finding stands as written.

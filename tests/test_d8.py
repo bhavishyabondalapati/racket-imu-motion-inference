@@ -47,8 +47,22 @@ def test_infer_returns_a_complete_result(models):
     assert sum(result.probabilities.values()) == pytest.approx(1.0)
     assert result.confidence == max(result.probabilities.values())
     assert result.confidence_is_calibrated is False
-    assert set(result.quality) == set(QUALITY_TARGETS)
     assert 0 < result.rows_used <= WINDOW["n_rows"]
+
+
+def test_quality_is_off_by_default(models):
+    result = infer(stroke(np.random.default_rng(1)), fs=8.0, models=models)
+    assert result.quality is None and result.quality_note is None
+    assert "quality" not in result.to_dict() and "quality_note" not in result.to_dict()
+
+
+def test_quality_only_behind_the_experimental_flag(models):
+    result = infer(stroke(np.random.default_rng(1)), fs=8.0, models=models,
+                   experimental_quality=True)  # fmt: skip
+    assert set(result.quality) == set(QUALITY_TARGETS)
+    assert result.quality_note.startswith("does not beat a level-only baseline; experimental")
+    plain = infer(stroke(np.random.default_rng(1)), fs=8.0, models=models)
+    assert plain.stroke_type == result.stroke_type  # the flag does not change the class
 
 
 def test_higher_rate_is_reduced_to_the_training_rate(models):
