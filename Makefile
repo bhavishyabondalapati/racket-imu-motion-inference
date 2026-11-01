@@ -45,7 +45,7 @@ classify:
 quality:
 	$(PYTHON) scripts/quality.py
 skill:
-	$(call not_yet,D5)
+	$(PYTHON) scripts/skill.py
 ablation:
 	$(PYTHON) scripts/run_ablation.py
 errors:
