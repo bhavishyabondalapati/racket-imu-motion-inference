@@ -39,7 +39,7 @@ endef
 inspect:
 	$(PYTHON) scripts/inspect_dataset.py
 preprocess:
-	$(call not_yet,D2)
+	$(PYTHON) scripts/preprocess.py
 classify:
 	$(call not_yet,D3)
 quality:
