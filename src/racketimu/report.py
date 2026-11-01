@@ -103,7 +103,7 @@ def d3_section(d3: Path) -> list[str]:
 def d6_section(d6: Path) -> list[str]:
     s = pd.DataFrame(_json(d6 / "metrics.json"))
     lines = ["## Sparsity ablation (D6)", ""]
-    for model in s["model"].unique():
+    for model in sorted(s["model"].unique(), key=lambda m: m != "rf"):
         t = s[s["model"] == model].assign(label=lambda d: d["label"].str.replace("2th", "2nd"))
         lines += [
             f"**{'Random forest' if model == 'rf' else model.upper()}**",
@@ -128,14 +128,25 @@ def d6_section(d6: Path) -> list[str]:
         ]
     s = s.assign(label=s["label"].str.replace("2th", "2nd"))
     rf = s[(s["model"] == "rf") & (s["condition"] != "full")].sort_values("delta_mean")
-    worst = rf.head(3)
+    hurt = rf[rf["delta_mean"] < -2 * rf["delta_std"].clip(lower=0.005)]
+    rest = rf.drop(hurt.index)
     lines += [
-        "Reductions that hurt most (RF): "
-        + "; ".join(f"{r.label} ({r.delta_mean:+.3f})" for r in worst.itertuples())
-        + ".",
+        "Reductions that hurt (RF, Δ below −2 × its seed std): "
+        + ("; ".join(f"{r.label} ({r.delta_mean:+.3f})" for r in hurt.itertuples()) or "none")
+        + f". All other reductions stay within {rest['delta_mean'].abs().max():.3f} of full data.",
         "",
     ]
     return lines
+
+
+D4_NAMES = {
+    "global_mean": "Global training mean",
+    "class_mean": "Per-class training mean",
+    "level_mean": "Level-only baseline",
+    "rf": "RF regressor",
+    "gru": "GRU",
+    "cnn": "1D CNN",
+}
 
 
 def d4_section(d4: Path) -> list[str]:
@@ -160,7 +171,9 @@ def d4_section(d4: Path) -> list[str]:
                             lambda s: "n/a" if s.isna().all() else _pm(s)
                         ),
                     }
-                ).rename_axis("method")
+                )
+                .rename(index=D4_NAMES)
+                .rename_axis("method")
             ),
             "",
         ]
@@ -171,12 +184,35 @@ def d4_section(d4: Path) -> list[str]:
             f"seed) on {len(yes)} of {len(verdict)} targets"
             + (f": {', '.join(yes)}." if yes else ".")
         )
-    return [*lines, "", "Full per-criterion tables: the D4 `report.md`.", ""]
+    return [
+        *lines,
+        "- The negative Spearman of the mean baselines is a leave-one-out artifact (removing a "
+        "low-scoring player raises the training mean predicted for that player); their MAE is "
+        "the meaningful number.",
+        "",
+        "Full per-criterion tables: the D4 `report.md`.",
+        "",
+    ]
+
+
+def _drops(cg: pd.DataFrame) -> list[str]:
+    out = []
+    for level, other in (("novice", "pro"), ("pro", "novice")):
+        w = cg[(cg["test_level"] == level) & (cg["mode"] == "within-group LOPO")]
+        c = cg[(cg["test_level"] == level) & (cg["mode"] == "cross-group")]
+        f1 = c["type_macro_f1"].mean() - w["type_macro_f1"].mean()
+        mae = c["mae_score_mean"].mean() - w["mae_score_mean"].mean()
+        out.append(
+            f"- Testing on {level}s, training on {other}s instead of other {level}s: "
+            f"stroke-type macro-F1 {f1:+.3f}, score_mean MAE {mae:+.2f} points."
+        )
+    return out
 
 
 def d5_section(d5: Path) -> list[str]:
     m = _json(d5 / "metrics.json")
-    lv = pd.DataFrame(m["level"])
+    names = {"majority": "Majority", "rf": "RF", "gru": "GRU", "cnn": "1D CNN"}
+    lv = pd.DataFrame(m["level"]).replace({"model": names})
     g = lv.groupby("model", sort=False)
     cg = pd.DataFrame(m["cross_group"])
     h = cg.groupby("setting", sort=False)
@@ -203,6 +239,12 @@ def d5_section(d5: Path) -> list[str]:
                 }
             ).rename_axis("setting")
         ),
+        "",
+        *_drops(cg),
+        "",
+        "- Caveat: level is fully confounded with recording day (all novices recorded on "
+        "2019-09-25, all pros on other days), so the novice-vs-pro result may partly reflect "
+        "session differences.",
         "",
     ]
 
