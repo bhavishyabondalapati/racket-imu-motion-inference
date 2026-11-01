@@ -352,3 +352,48 @@ def plot_quality_scatter(oof: pd.DataFrame, method: str, out: Path) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150, facecolor=SURFACE)
     plt.close(fig)
+
+
+def plot_failure_cases(windows: pd.DataFrame, preds: pd.DataFrame, cases: pd.DataFrame,
+                       out: Path) -> None:  # fmt: skip
+    """Each failure (dark line) against median + IQR of its true and predicted class."""
+    w = windows[windows["mask"]].copy()
+    w["gyro_mag"] = np.linalg.norm(w[io.GYRO].to_numpy(), axis=1)
+    panels = [("roll_deg", "roll (deg)"), ("pitch_sin", "pitch sin"), ("pitch_cos", "pitch cos"),
+              ("gyro_mag", "|gyro| (rad/s)")]  # fmt: skip
+    fig, axes = plt.subplots(len(cases), len(panels), figsize=(3.0 * len(panels), 2.3 * len(cases)),
+                             sharex=True, squeeze=False)  # fmt: skip
+    fig.patch.set_facecolor(SURFACE)
+    for r, case in enumerate(cases.itertuples()):
+        stroke = w[w["sample_id"] == case.sample_id]
+        for c, (col, label) in enumerate(panels):
+            ax = axes[r, c]
+            _style_axes(ax)
+            for k, cls in enumerate([case.true, case.pred]):
+                q = w[w["stroke"] == cls].groupby("pos")[col].quantile([0.25, 0.5, 0.75]).unstack()
+                ax.fill_between(q.index, q[0.25], q[0.75], color=SERIES[k], alpha=0.15, linewidth=0)
+                role = "true" if k == 0 else "predicted"
+                ax.plot(q.index, q[0.5], color=SERIES[k], linestyle=STYLES[k + 1], linewidth=1.5,
+                        label=f"{role}: {cls.title()} (median, IQR)")  # fmt: skip
+            ax.plot(stroke["pos"], stroke[col], color=INK, linewidth=1.8, label="this stroke")
+            if r == 0:
+                ax.set_title(label, fontsize=9, color=INK, loc="left")
+            if c == 0:
+                name = f"id {case.sample_id} · {case.test_player}"
+                change = f"{case.true.title()} → {case.pred.title()} ({case.confidence:.2f})"
+                ax.set_ylabel(f"{name}\n{change}", fontsize=7.5, color=INK_2)
+            if r == len(cases) - 1:
+                ax.set_xlabel("rows from peak gyro row", fontsize=8, color=INK_2)
+    handles, labels = [], []
+    for r in range(len(cases)):  # one legend entry per distinct label
+        for h, lab in zip(*axes[r, 0].get_legend_handles_labels(), strict=True):
+            if lab not in labels:
+                handles.append(h)
+                labels.append(lab)
+    fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=7.5, frameon=False)
+    fig.suptitle("Most confident errors vs typical strokes of the true and predicted class",
+                 x=0.01, ha="left", fontsize=10, color=INK)  # fmt: skip
+    fig.tight_layout(rect=(0, 0.06, 1, 0.96))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150, facecolor=SURFACE)
+    plt.close(fig)

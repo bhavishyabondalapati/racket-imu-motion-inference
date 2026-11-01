@@ -49,7 +49,7 @@ skill:
 ablation:
 	$(PYTHON) scripts/run_ablation.py
 errors:
-	$(call not_yet,D7)
+	$(PYTHON) scripts/errors.py
 latency:
 	$(call not_yet,D8)
 report:
