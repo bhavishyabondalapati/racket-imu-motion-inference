@@ -8,9 +8,9 @@ This project takes a public dataset of table tennis forehands, recorded with a s
 
 > Sahar S. Tabrizi, Vajiheh Javani, Saeid Pashazadeh. *Data Acquired by a Single Object Sensor (IMU) of Table Tennis Forehand Strokes.* Mendeley Data, Version 3, 2020. DOI: [10.17632/b7bc9y232m.3](https://doi.org/10.17632/b7bc9y232m.3). Licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-The data and its original analysis belong to these authors. This project's contribution is its own evaluation protocol (leave-one-player-out), analysis, ablations, and inference interface. It makes no claim of novelty over the original work. The raw data is not redistributed here: download it from Mendeley Data (see Setup).
+The data and its original analysis belong to these authors. This project's contribution is its own evaluation protocol (leave-one-player-out), analysis, ablations, and inference interface. It makes no claim of novelty over the original work. The raw sensor recordings are not redistributed here: download them from Mendeley Data (see Setup). The result files in `results/` list each sample's true stroke type and coach scores next to the predictions. These values come from the dataset and are shared under its CC BY 4.0 licence with the credit above.
 
-> **Status: all milestones D1-D9 are complete.** Every number below comes from `results/SUMMARY.md`, which `make report` builds from the saved runs in `results/` (each with the commit it ran from). Design decisions are in [docs/DESIGN.md](docs/DESIGN.md); decisions taken while the owner was offline, and open questions, are in [docs/REVIEW_QUEUE.md](docs/REVIEW_QUEUE.md).
+> **Status: all milestones D1-D9 are complete (v0.1).** Every number below comes from `results/SUMMARY.md`, which `make report` builds from the saved runs in `results/` (each with the commit it ran from). Design decisions are in [docs/DESIGN.md](docs/DESIGN.md); decisions taken while the owner was offline, and open questions, are in [docs/REVIEW_QUEUE.md](docs/REVIEW_QUEUE.md).
 
 ## Results
 
@@ -46,7 +46,7 @@ Only two reductions hurt: removing each stroke's average values (−0.131 macro-
 | Random forest | 10.85 ± 0.02 | 0.281 ± 0.002 |
 | GRU | 9.90 ± 0.26 | 0.297 ± 0.023 |
 
-**The models do not judge stroke quality beyond the player's level.** Neither beats the level-only baseline on any of the 6 targets (the rule was fixed before the run). Within novices they rank strokes only weakly (Spearman 0.13-0.17); within pros the ranking is negative.
+**The models do not judge stroke quality beyond the player's level.** Neither beats the level-only baseline on any of the 6 targets (the rule was fixed before the run). Within novices they rank strokes only weakly (Spearman 0.13-0.17); within pros the ranking is negative. So the quality estimate is **not** part of the default inference output; it is available only behind an explicit experimental flag.
 
 ![Quality predictions](results/d4_20261101T035101Z/quality_scatter.png)
 
@@ -59,7 +59,7 @@ Only two reductions hurt: removing each stroke's average values (−0.131 macro-
 ### Errors and speed
 
 - The most confident errors come from 3 novices. Their racket angle matches the wrong class, which is consistent with the orientation finding ([docs/ERRORS.md](docs/ERRORS.md)).
-- `racketimu.infer.infer()` takes a median of **40.3 ms** (p95 40.9 ms) per stroke on an Apple M4 Pro CPU.
+- `racketimu.infer.infer()` takes a median of **6.15 ms** (p95 6.37 ms) per stroke on an Apple M4 Pro CPU (default output: stroke type only).
 
 ![Failure cases](docs/figures/d7/failure_cases.png)
 
@@ -103,7 +103,7 @@ Makefile                         one command per step (test, lint, inspect ... r
 configs/default.yaml             every threshold, window size, seed, and pre-registered check rule
 data/raw/, data/interim/         raw dataset (data/raw/tabrizi2020/) and intermediate files (git-ignored)
 data/processed/                  strokes.parquet (git-ignored, rebuilt by `make preprocess`)
-models/                          deployable models from `make train-final` (git-ignored)
+models/                          deployable models from `make train-final` (git-ignored, ~12 MB)
 src/racketimu/config.py          loads the YAML config and applies overrides
 src/racketimu/seed.py            seeds Python/NumPy/torch; picks the device (cpu by default)
 src/racketimu/io.py              loads the raw stroke files, converts units, attaches labels/scores, marks exclusions
@@ -160,7 +160,7 @@ make ablation         # D6: sparsity ablation (~11 min)
 make quality          # D4: coach-score prediction (~6 min)
 make skill            # D5: novice vs pro and cross-group (~5 min)
 make errors           # D7: regenerate docs/ERRORS.md
-make latency          # D8: train the deployable models, then time inference
+make latency          # D8: train the deployable model, then time inference
 make report           # D9: regenerate results/SUMMARY.md
 make all              # D2 to D9 in order
 ```
@@ -175,7 +175,9 @@ python -m racketimu.infer --player P04 --out p04.json
 python -m racketimu.infer --csv data/raw/tabrizi2020/Raw/Sensory-Data/77.csv
 ```
 
-Or from Python: `from racketimu.infer import infer; infer(imu_window, fs=8.0)`. `imu_window` is one stroke's rows, shape [T, 8]: acc x/y/z in m/s², gyro x/y/z in rad/s, roll and pitch in degrees.
+Or from Python: `from racketimu.infer import infer; infer(imu_window, fs=8.0)`. `imu_window` is one stroke's rows, shape [T, 8]: acc x/y/z in m/s², gyro x/y/z in rad/s, roll and pitch in degrees. The result has the stroke type, per-class probabilities, and an uncalibrated confidence. Coach-score estimates are returned only with `experimental_quality=True` (CLI: `--experimental-quality`): they do not beat a level-only baseline and are experimental.
+
+Predictions on strokes from this dataset are in-sample, because the deployed model was trained on all of them. Unseen-player performance is what the results above report.
 
 ## How it was built
 
@@ -197,7 +199,7 @@ Or from Python: `from racketimu.infer import infer; infer(imu_window, fs=8.0)`. 
 
 9. **D7, error analysis:** generated `docs/ERRORS.md` with the most confident errors, the least confident strokes, per-player accuracy, and failure plots. Most errors are basic/topspin confusions, and confident errors follow the racket angle of the wrong class.
 
-10. **D8, inference interface:** `racketimu.infer.infer()` and a CLI, backed by random forests retrained on all used strokes; about 40 ms per stroke on a laptop CPU.
+10. **D8, inference interface:** `racketimu.infer.infer()` and a CLI, backed by a random forest retrained on all used strokes; about 6 ms per stroke on a laptop CPU. After review, the quality estimate was moved behind `--experimental-quality`, because it does not beat a level-only baseline.
 
 11. **D9, reporting:** `make report` builds `results/SUMMARY.md` from the saved runs, and this README was filled in from it. The `v0.1` tag is left for the owner after review.
 

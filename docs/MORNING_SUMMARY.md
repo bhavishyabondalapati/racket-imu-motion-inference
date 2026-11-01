@@ -65,3 +65,10 @@ Open questions:
 ## Not done (by instruction)
 
 - No `v0.1` tag; the repo stays private; no Raspberry Pi latency.
+
+## Update after review (2026-11-01)
+
+- **Calibration:** not refit on more players (owner's decision); the D3 finding stands.
+- **Quality output:** removed from the default `infer()` output and CLI; available only with `experimental_quality=True` / `--experimental-quality`, documented as "does not beat a level-only baseline; experimental". The D4 code and results are unchanged.
+- **D8 re-measured** from a clean commit for the default output (stroke type only): median **6.15 ms**, p95 6.37 ms per stroke (Apple M4 Pro, CPU, single thread, 1000 runs). The earlier 40.25 ms run, which included the six quality forests, is kept in `results/` as history.
+- `results/SUMMARY.md` regenerated; tagged `v0.1`.

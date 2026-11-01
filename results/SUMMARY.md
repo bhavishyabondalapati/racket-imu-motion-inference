@@ -10,7 +10,7 @@
 | D6 ablation | `d6_20261101T034227Z` | `8ab3698c5b` | yes |
 | D4 quality | `d4_20261101T035101Z` | `613650d6de` | yes |
 | D5 skill / cross-group | `d5_20261101T035811Z` | `b89ac1ffb8` | yes |
-| D8 latency | `d8_20261101T040445Z` | `33ecc3a8a1` | yes |
+| D8 latency | `d8_20261101T143042Z` | `0f75c1f1c6` | yes |
 
 ## Dataset
 
@@ -135,7 +135,7 @@ Full per-criterion tables: the D4 `report.md`.
 
 ## Inference latency (D8)
 
-`racketimu.infer.infer` on Apple M4 Pro (CPU only, single thread): median 40.25 ms, p95 40.88 ms per stroke over 1000 runs.
+Default `racketimu.infer.infer` (stroke type only; the quality estimate is behind an experimental flag) on Apple M4 Pro (CPU only, single thread): median 6.15 ms, p95 6.37 ms per stroke over 1000 runs.
 
 ## Limitations
 

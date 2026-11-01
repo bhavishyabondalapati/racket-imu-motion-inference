@@ -1,0 +1,16 @@
+{
+  "commit": "0f75c1f1c628f3c22f4ada573d89bdc7cf1f9dbc",
+  "dirty": false,
+  "changed": [],
+  "duration_s": 9.7,
+  "device": "cpu",
+  "machine": "arm64",
+  "processor": "arm",
+  "system": "macOS-26.6.2-arm64-arm-64bit",
+  "python": "3.11.18",
+  "torch": "2.15.0",
+  "sklearn": "1.9.1",
+  "numpy": "2.4.6",
+  "pandas": "3.1.0",
+  "torch_threads": 10
+}

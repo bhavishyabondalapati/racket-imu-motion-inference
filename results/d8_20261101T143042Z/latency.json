@@ -1,0 +1,11 @@
+{
+  "n_runs": 1000,
+  "warmup_runs": 20,
+  "median_ms": 6.146583240479231,
+  "p95_ms": 6.372449710033834,
+  "mean_ms": 6.150816599372774,
+  "max_ms": 6.912207696586847,
+  "cpu": "Apple M4 Pro",
+  "logical_cpus": 14,
+  "what_is_timed": "default infer() (no experimental quality): angle encoding, windowing, 47 handcrafted features, RF classifier (300 trees), single thread, one stroke at a time"
+}

@@ -272,7 +272,8 @@ def d8_section(d8: Path) -> list[str]:
     return [
         "## Inference latency (D8)",
         "",
-        f"`racketimu.infer.infer` on {lat['cpu']} (CPU only, single thread): median "
+        f"Default `racketimu.infer.infer` (stroke type only; the quality estimate is behind an "
+        f"experimental flag) on {lat['cpu']} (CPU only, single thread): median "
         f"{lat['median_ms']:.2f} ms, p95 {lat['p95_ms']:.2f} ms per stroke over "
         f"{lat['n_runs']} runs.",
         "",
