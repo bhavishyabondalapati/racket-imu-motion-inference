@@ -42,6 +42,11 @@ window:                     # D2
   center: peak_gyro         # align the crop on the row with peak gyro magnitude
   peak_position: 16         # the peak row lands here (16 before, 31 after); best coverage of 24/16/12
 
+quality:                    # D4
+  # Rule fixed before the run: a model "judges stroke quality" on a target only if its
+  # pooled out-of-fold MAE is below the level-only baseline's in every seed.
+  beat_rule: pooled_mae_below_level_baseline_all_seeds
+
 ablation:                   # D6
   row_strides: [1, 2, 4]    # keep every row, every 2nd row, every 4th row
   window_fractions: [1.0, 0.75, 0.5]  # of window.n_rows, peak kept at the same relative position

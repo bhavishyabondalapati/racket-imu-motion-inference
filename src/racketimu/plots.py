@@ -322,3 +322,33 @@ def plot_ablation_deltas(rf_summary: pd.DataFrame, out: Path) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150, facecolor=SURFACE)
     plt.close(fig)
+
+
+def plot_quality_scatter(oof: pd.DataFrame, method: str, out: Path) -> None:
+    """Predicted vs true mean score (seed 0), novices and pros in separate colors."""
+    d = oof[(oof["method"] == method) & (oof["seed"] == oof["seed"].min())]
+    fig, ax = plt.subplots(figsize=(4.8, 4.4))
+    fig.patch.set_facecolor(SURFACE)
+    ax.set_facecolor(SURFACE)
+    ax.grid(True, color=GRID, linewidth=0.6)
+    lims = [min(d["true_score_mean"].min(), d["pred_score_mean"].min()) - 2, 100]
+    ax.plot(lims, lims, color=MUTED, linewidth=1, linestyle=(0, (2, 2)), label="perfect")
+    for k, (level, marker) in enumerate([("novice", "o"), ("pro", "s")]):
+        g = d[d["level"] == level]
+        ax.scatter(g["true_score_mean"], g["pred_score_mean"], s=14, color=SERIES[k],
+                   marker=marker, alpha=0.6, edgecolors=SURFACE, linewidths=0.4,
+                   label=level)  # fmt: skip
+    ax.set_xlim(lims)
+    ax.set_ylim(lims)
+    ax.set_xlabel("true mean score (coach average)", fontsize=8, color=INK_2)
+    ax.set_ylabel("predicted (out-of-fold)", fontsize=8, color=INK_2)
+    ax.set_title(f"Mean score: {method.upper()} predictions, seed 0", fontsize=10, color=INK,
+                 loc="left")  # fmt: skip
+    ax.tick_params(colors=MUTED, labelsize=8)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    ax.legend(fontsize=8, frameon=False, loc="upper left")
+    fig.tight_layout()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150, facecolor=SURFACE)
+    plt.close(fig)

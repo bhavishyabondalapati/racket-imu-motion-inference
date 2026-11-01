@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Callable
 
 import numpy as np
 import torch
@@ -31,9 +32,9 @@ def class_weights(y: np.ndarray, n_classes: int) -> np.ndarray:
     return np.where(counts > 0, len(y) / (n_classes * np.maximum(counts, 1)), 0.0)
 
 
-def _tensors(x, mask, y=None):
+def _tensors(x, mask, y=None, y_dtype=torch.long):
     out = [torch.from_numpy(x), torch.from_numpy(mask)]
-    return out + ([torch.from_numpy(y).long()] if y is not None else [])
+    return out + ([torch.from_numpy(y).to(y_dtype)] if y is not None else [])
 
 
 def _epoch_loss(model, loss_fn, x, m, y) -> float:
@@ -42,21 +43,25 @@ def _epoch_loss(model, loss_fn, x, m, y) -> float:
         return float(loss_fn(model(x, m), y))
 
 
-def train_classifier(
+def train_model(
     model: nn.Module,
     train: tuple[np.ndarray, np.ndarray, np.ndarray],
     val: tuple[np.ndarray, np.ndarray, np.ndarray],
-    weights: np.ndarray,
+    make_loss: Callable[[torch.device], nn.Module],
     cfg: dict,
     seed: int,
+    y_dtype: torch.dtype = torch.long,
 ) -> tuple[nn.Module, dict]:
-    """Train with Adam and class-weighted cross-entropy; keep the best epoch by validation loss."""
+    """Train with Adam and mini-batches; keep the best epoch by validation loss.
+
+    Stops when the validation loss has not improved for `early_stopping_patience` epochs.
+    """
     set_seed(seed)
     device = get_device(cfg["device"])
     model.to(device)
-    x_tr, m_tr, y_tr = (t.to(device) for t in _tensors(*train))
-    x_va, m_va, y_va = (t.to(device) for t in _tensors(*val))
-    loss_fn = nn.CrossEntropyLoss(weight=torch.tensor(weights, dtype=torch.float32, device=device))
+    x_tr, m_tr, y_tr = (t.to(device) for t in _tensors(*train, y_dtype=y_dtype))
+    x_va, m_va, y_va = (t.to(device) for t in _tensors(*val, y_dtype=y_dtype))
+    loss_fn = make_loss(device)
     opt = torch.optim.Adam(model.parameters(), lr=cfg["learning_rate"])
     gen = torch.Generator().manual_seed(seed)
     best = {"loss": float("inf"), "epoch": -1, "state": None}
@@ -77,6 +82,33 @@ def train_classifier(
         "best_val_loss": best["loss"],
         "epochs_run": epoch + 1,
     }
+
+
+def train_classifier(
+    model: nn.Module,
+    train: tuple[np.ndarray, np.ndarray, np.ndarray],
+    val: tuple[np.ndarray, np.ndarray, np.ndarray],
+    weights: np.ndarray,
+    cfg: dict,
+    seed: int,
+) -> tuple[nn.Module, dict]:
+    """Class-weighted cross-entropy (D3)."""
+
+    def make_loss(device):
+        return nn.CrossEntropyLoss(weight=torch.tensor(weights, dtype=torch.float32, device=device))
+
+    return train_model(model, train, val, make_loss, cfg, seed)
+
+
+def train_regressor(
+    model: nn.Module,
+    train: tuple[np.ndarray, np.ndarray, np.ndarray],
+    val: tuple[np.ndarray, np.ndarray, np.ndarray],
+    cfg: dict,
+    seed: int,
+) -> tuple[nn.Module, dict]:
+    """Mean squared error on (standardized) continuous targets [N, K] (D4)."""
+    return train_model(model, train, val, lambda device: nn.MSELoss(), cfg, seed, torch.float32)
 
 
 def predict_logits(model: nn.Module, x: np.ndarray, mask: np.ndarray) -> np.ndarray:

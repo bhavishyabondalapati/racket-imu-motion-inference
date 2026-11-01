@@ -43,7 +43,7 @@ preprocess:
 classify:
 	$(PYTHON) scripts/classify.py
 quality:
-	$(call not_yet,D4)
+	$(PYTHON) scripts/quality.py
 skill:
 	$(call not_yet,D5)
 ablation:
