@@ -200,6 +200,33 @@ def _sampling_section(
     ]
 
 
+def _signal_section(inc: pd.DataFrame, strokes: dict[int, pd.DataFrame]) -> list[str]:
+    """Peak rotation rate, acceleration magnitude, and peak-on-first-row share (used set)."""
+    used = [strokes[i] for i in inc["sample_id"]]
+    gyro = [np.linalg.norm(s[io.GYRO].to_numpy(), axis=1) for s in used]
+    peaks = np.array([g.max() for g in gyro])
+    first = np.array([g.argmax() == 0 for g in gyro])
+    acc = np.concatenate([np.linalg.norm(s[io.ACC].to_numpy(), axis=1) for s in used])
+    p1, p99 = np.percentile(acc, [1, 99])
+    return [
+        f"- **Peak rotation rate per stroke:** median {np.median(peaks):.2f} rad/s "
+        f"({np.degrees(np.median(peaks)):.0f} deg/s), 95th percentile "
+        f"{np.percentile(peaks, 95):.2f} rad/s, max {peaks.max():.2f} rad/s.",
+        f"- **Acceleration magnitude, all rows:** median {np.median(acc):.2f} m/s², "
+        f"1st-99th percentile {p1:.2f}-{p99:.2f} m/s², max {acc.max():.2f} m/s². "
+        "Gravity alone is 9.81 m/s².",
+        f"- **Peak on the first row:** {first.sum()} of {len(first)} strokes "
+        f"({first.mean():.1%}) have their largest rotation rate on the first logged row.",
+        "",
+        "**Interpretation (supported by these numbers, not certain):** a modest peak rotation "
+        "rate and an acceleration magnitude that stays close to gravity, at about 8 rows per "
+        "second, suggest that the logging rate undersamples the fast phase of the stroke. The "
+        "signal then mostly reflects the racket's orientation rather than swing dynamics. "
+        "Strokes whose peak is on the first row are a likely sign that recordings sometimes "
+        "start mid-swing.",
+    ]
+
+
 def _checks_section(index: pd.DataFrame, processed: dict[str, Any], dates: list[str]) -> list[str]:
     authors = index[index["in_authors_set"]]
     label_mismatch = int((authors["folder_stroke"] != authors["stroke"]).sum())
@@ -276,6 +303,7 @@ def build_dataset_card(ds: io.Dataset, files: io.DatasetFiles, cfg: dict[str, An
         "prediction.", "",
         "## Sampling rate", "",
         *_sampling_section(inc, ds.strokes, cfg["dataset"]["stated_rates_hz"]), "",
+        "## Signal characteristics (used set)", "", *_signal_section(inc, ds.strokes), "",
         "## Channels and units", "",
         "| channels | unit | conversion from the raw integers |", "|---|---|---|",
         "| acc x, y, z | m/s² | raw / 100 (BNO055 default; median magnitude at rest ≈ 9.81) |",

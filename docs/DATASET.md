@@ -88,6 +88,14 @@ Correlation between criteria (Pearson, used set). These are correlations between
 - **Rows per stroke:** median 23, 5th-95th percentile 9-50, min 2, max 430.
 - **Exact duplicate rows** (a row identical to the previous one in every channel): 7101 of 33194 consecutive pairs (21.4%). Per stroke: median 21.2%. Duplicates are kept.
 
+## Signal characteristics (used set)
+
+- **Peak rotation rate per stroke:** median 1.22 rad/s (70 deg/s), 95th percentile 3.02 rad/s, max 8.03 rad/s.
+- **Acceleration magnitude, all rows:** median 9.81 m/s², 1st-99th percentile 8.79-11.44 m/s², max 25.26 m/s². Gravity alone is 9.81 m/s².
+- **Peak on the first row:** 238 of 1344 strokes (17.7%) have their largest rotation rate on the first logged row.
+
+**Interpretation (supported by these numbers, not certain):** a modest peak rotation rate and an acceleration magnitude that stays close to gravity, at about 8 rows per second, suggest that the logging rate undersamples the fast phase of the stroke. The signal then mostly reflects the racket's orientation rather than swing dynamics. Strokes whose peak is on the first row are a likely sign that recordings sometimes start mid-swing.
+
 ## Channels and units
 
 | channels | unit | conversion from the raw integers |
