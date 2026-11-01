@@ -26,6 +26,12 @@ Decisions taken while the owner was offline (2026-11-01), each with the more con
 12. **Cross-group forests use the fit set only** (validation players from the training group are set aside but unused by the RF), so within-group and cross-group are trained the same way as in D3/D4. *Alternative:* fit on all training-group players for cross-group. *Why:* the drop from within-group to cross-group stays a like-for-like comparison.
 13. **Recording-date table added to `docs/DATASET.md`** (D1 card code extended) after finding that level is confounded with recording day. *Why:* it is a dataset fact that every later level result depends on.
 
+### D8
+14. **Confidence is returned uncalibrated** and flagged (`confidence_is_calibrated=False`). *Alternative:* apply a temperature from the inner validation players. *Why:* D3 showed that temperature made calibration worse on unseen players.
+15. **The quality estimate stays in the interface** with a note that it mostly reflects player level (D4). *Alternative:* drop it. *Why:* the spec asks for it, and the note makes its limits explicit; easy to remove.
+16. **Deployable models are the random forests** (stroke type and quality), retrained on all used strokes. *Alternative:* the GRU. *Why:* the RF had the best D3 macro-F1, is deterministic, and needs no scaler or early stopping.
+17. **Latency rerun** after a CLI-only change, so `run.json` points to a clean commit; the first latency run was deleted.
+
 ## Open questions for the owner
 1. **Calibration across players:** temperature fitted on 2 inner validation players made ECE worse on every model. A temperature fitted on more players (for example, inner leave-one-player-out over all training players) might transfer better, but that changes the inner protocol, so it was not done.
 2. **Leak check flagged:** mean orientation alone matches the full models. Separating "real racket-angle difference" from "recording-block artifact" would need data the dataset does not have, such as interleaved stroke types within one recording.

@@ -338,3 +338,19 @@ All numbers below are from `results/d3_20261101T032754Z/report.md`: pooled out-o
 - The highest error rate is novice topspins (48.9%, n=94), against 32.7% for pro topspins.
 - Error rate rises with the number of rows in the stroke file: 9.3% (2-15 rows), 14.5% (16-25), 26.0% (26-40), 37.7% (41+). Strokes whose peak is on the first row have a lower error rate (9.2% vs 21.2%); those files are also short.
 - Per-player accuracy ranges from 0.40 (N08, basics only, 30 of 50 wrong) to 1.0 (N01, P01). Mean per-player accuracy is 0.775 for novices and 0.832 for pros.
+
+## D8: Inference interface and latency (2026-11-01)
+
+### Interface
+- `racketimu.infer.infer(imu_window, fs, models=None) -> InferenceResult`. The input is one stroke's rows, shape [T, 8]: acc x/y/z (m/s²), gyro x/y/z (rad/s), roll and pitch (degrees), sensor frame. The function adds pitch sin/cos, builds the D2 window (48 rows, peak at 16), computes the 47 handcrafted features, and runs the stroke-type RF and the six quality RFs.
+- **Returned fields:** stroke type, per-class probabilities, confidence, `confidence_is_calibrated = False`, predicted C1-C5 and mean score, a quality note, and the number of rows used.
+- **Uncalibrated confidence, labelled as such:** the spec asked for a calibrated confidence, but temperature scaling did not transfer to unseen players (D3). The conservative choice is to return the uncalibrated probability and say so in the result rather than claim calibration (`docs/REVIEW_QUEUE.md`).
+- **Quality note from the D4 verdict:** `make train-final` reads the latest D4 result and stores its verdict with the models. Currently: "did not beat a level-only baseline on any score ... treat it as mostly reflecting player level".
+- **Sampling rate:** the models were trained at the observed 8.27 rows per second. Higher input rates are reduced by keeping every k-th row (k = round(fs / 8.27)), the same operation as the D6 stride. Lower rates trigger a warning that points to the D6 results.
+- **Input validation:** wrong shape, empty input, or NaN/inf values raise `ValueError`.
+- **Deployable models:** `make train-final` retrains the RF classifier and regressors on all 1344 used strokes with the config hyperparameters (`models/stroke_models.joblib`, 11.7 MB, git-ignored). They are set to a single thread for one-stroke inference.
+- **CLI:** `python -m racketimu.infer --player P04 --out p04.json` or `--csv <raw stroke file>`. Both write JSON with a note that predictions on dataset strokes are **in-sample** (the deployed models saw them in training; P04 comes out at 100% accuracy for that reason). Unseen-player performance is what D3 and D4 report.
+
+### Latency (run `d8_20261101T040445Z`, clean commit)
+- **Median 40.25 ms, p95 40.88 ms per stroke** (mean 40.28, max 44.18) on an Apple M4 Pro (CPU only, single thread), over 1000 timed calls on real strokes after 20 warm-up calls. The time covers the whole `infer()` call and is dominated by the 7 forests of 300 trees each.
+- Raspberry Pi 4 latency was skipped (owner's instruction).

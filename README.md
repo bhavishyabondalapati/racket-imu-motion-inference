@@ -10,7 +10,7 @@ This project takes a public dataset of table tennis forehands, recorded with a s
 
 The data and its original analysis belong to these authors. This project's contribution is its own evaluation protocol (leave-one-player-out), analysis, ablations, and inference interface. It makes no claim of novelty over the original work. The raw data is not redistributed here: download it from Mendeley Data (see Setup).
 
-> **Status: D3, D6, D4, D5 and D7 done; D8, D9 in progress.** Full results will be summarised here in D9. The data itself is described in [docs/DATASET.md](docs/DATASET.md): 1344 of the authors' 1570 cleaned samples are usable, from 15 players.
+> **Status: D3-D8 done; D9 (summary) in progress.** Full results will be summarised here in D9. The data itself is described in [docs/DATASET.md](docs/DATASET.md): 1344 of the authors' 1570 cleaned samples are usable, from 15 players.
 
 ## Results
 
@@ -115,7 +115,9 @@ The remaining pipeline steps (`make preprocess`, … `make report`, `make all`) 
 
 9. **D7, error analysis:** generated `docs/ERRORS.md` with the most confident errors, the least confident strokes, per-player accuracy, and failure plots. Most errors are basic/topspin confusions, and confident errors follow the racket angle of the wrong class.
 
-Later milestones (D8 interface → D9 report) will be added here as they are completed.
+10. **D8, inference interface:** `racketimu.infer.infer()` and a CLI, backed by random forests retrained on all used strokes; about 40 ms per stroke on a laptop CPU.
+
+Later milestones (D9 report) will be added here as they are completed.
 
 ## Key concepts
 
