@@ -354,3 +354,8 @@ All numbers below are from `results/d3_20261101T032754Z/report.md`: pooled out-o
 ### Latency (run `d8_20261101T040445Z`, clean commit)
 - **Median 40.25 ms, p95 40.88 ms per stroke** (mean 40.28, max 44.18) on an Apple M4 Pro (CPU only, single thread), over 1000 timed calls on real strokes after 20 warm-up calls. The time covers the whole `infer()` call and is dominated by the 7 forests of 300 trees each.
 - Raspberry Pi 4 latency was skipped (owner's instruction).
+
+## D9: Reporting (2026-11-01)
+- `make report` builds `results/SUMMARY.md` only from the saved result files: the latest run of each milestone, listed with its commit and whether the tree was clean (all five are clean). It also redraws the two D6 figures into `docs/figures/d6/` from the saved D6 metrics. This fixes a label bug ("2th") and gives the stride chart a 0.5-0.9 y-axis, so seed noise is not mistaken for a trend. The numbers are unchanged; the results folder itself is never edited.
+- The README results section was filled in from `SUMMARY.md`, with figures. The dataset citation stays at the top, and the limitations include every item required by the spec plus those found along the way: level confounded with recording day, uncalibrated confidences, and selection of the best model on LOPO scores.
+- No `v0.1` tag was created, on the owner's instruction (the owner tags after review).
