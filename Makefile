@@ -2,7 +2,7 @@
 #   conda activate racket-imu-motion-inference
 PYTHON ?= python
 
-.PHONY: help install test lint format inspect preprocess classify quality skill \
+.PHONY: help install train-final test lint format inspect preprocess classify quality skill \
         ablation errors latency report all
 
 help:
@@ -13,6 +13,7 @@ help:
 	@echo "make inspect     D1   make preprocess D2   make classify D3"
 	@echo "make quality     D4   make skill      D5   make ablation D6"
 	@echo "make errors      D7   make latency    D8   make report   D9"
+	@echo "make train-final train the deployable models (models/, git-ignored)"
 	@echo "make all         D2..D9 in order"
 
 install:
@@ -50,8 +51,11 @@ ablation:
 	$(PYTHON) scripts/run_ablation.py
 errors:
 	$(PYTHON) scripts/errors.py
-latency:
-	$(call not_yet,D8)
+train-final:
+	$(PYTHON) scripts/train_final.py
+
+latency: train-final
+	$(PYTHON) scripts/latency.py
 report:
 	$(call not_yet,D9)
 
