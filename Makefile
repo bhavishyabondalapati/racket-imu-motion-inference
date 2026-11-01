@@ -37,7 +37,7 @@ define not_yet
 endef
 
 inspect:
-	$(call not_yet,D1)
+	$(PYTHON) scripts/inspect_dataset.py
 preprocess:
 	$(call not_yet,D2)
 classify:

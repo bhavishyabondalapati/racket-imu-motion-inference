@@ -22,8 +22,8 @@ dataset:                    # Tabrizi et al. 2020, see docs/DATASET.md
   player_overrides:         # sample id -> player, where the sources disagree
     720: P05                # scores CSV says P06; the spreadsheet range 651-720 says P05
   stated_rates_hz:          # what the authors' papers say (reported, not used)
-    data_in_brief_2020: 100
-    cin_2021: 70
+    "Data in Brief article, 2020": 100
+    "Computational Intelligence and Neuroscience paper, 2021": 70
 
 lopo:
   # Not used as a test player by any model that uses acc/gyro: P06 has no usable
