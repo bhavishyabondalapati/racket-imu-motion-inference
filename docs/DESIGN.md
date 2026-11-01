@@ -325,3 +325,16 @@ All numbers below are from `results/d3_20261101T032754Z/report.md`: pooled out-o
 - **Level can be predicted from the signal** (RF macro-F1 0.772 vs majority 0.324), but per-player accuracy varies from 0.51 (N06) to 1.0 (N02), and 0.56 for P08. **Major caveat, found in this milestone:** every novice was recorded on 2019-09-25 and every pro on 2019-09-17, -19 or -22 (`docs/DATASET.md`, "Recording dates by player"). Level is fully confounded with recording session, so part of the level signal may come from session differences (sensor mounting or calibration on that day) rather than skill. LOPO does not remove this, because the held-out novice shares the recording day with the training novices. This dataset cannot separate the two explanations.
 - **Stroke type transfers across levels.** Training on pros and testing on novices gives a *higher* macro-F1 than training on other novices (+0.076). The pro training set is larger and has more push and topspin examples (novices are mostly basic strokes). Training on novices and testing on pros loses only 0.030 against within-pro LOPO. Nothing here suggests a stroke-type model built on one population fails on the other.
 - **Quality does not transfer, as expected from D4.** The quality RF predicts scores typical of its training level: MAE rises by 12.5 points (testing on novices) and 22.4 points (testing on pros). Because scores mostly track level (D4), a quality model trained on one population would be badly miscalibrated on another, which matters for a consumer product whose users are mostly amateurs.
+
+## D7: Error analysis (2026-11-01)
+
+### Design
+- `make errors` reads the latest D3 run and writes `docs/ERRORS.md` and `docs/figures/d7/failure_cases.png`. The model is the D3 random forest on handcrafted primary features, the best D3 model by pooled macro-F1 (the leak and heading variants are checks, not candidates). Its uncalibrated probabilities are **averaged over the 3 seeds** per sample, so the confidence ranking does not depend on one seed. Every statement in the "Patterns found" list is a count or rate computed by the script; none is written by hand.
+- **Failure plots:** the 4 most confident errors against the median and interquartile band of their true class and of the predicted class, for roll, pitch (sin/cos) and gyro magnitude. Orientation is shown because D3 and D6 point to it as what the model uses.
+
+### Patterns the data shows (from `docs/ERRORS.md`)
+- 257 of 1344 strokes are misclassified. 237 of the 257 are basic/topspin confusions; push is almost never misclassified (0.8%).
+- The 10 most confident errors (confidence 0.98-1.00) come from 3 novices (N03, N04, N05); 7 of them are topspins predicted as basic. In the failure plots their pitch follows the predicted class's typical pitch, not the true class's, consistent with the model judging by racket angle.
+- The highest error rate is novice topspins (48.9%, n=94), against 32.7% for pro topspins.
+- Error rate rises with the number of rows in the stroke file: 9.3% (2-15 rows), 14.5% (16-25), 26.0% (26-40), 37.7% (41+). Strokes whose peak is on the first row have a lower error rate (9.2% vs 21.2%); those files are also short.
+- Per-player accuracy ranges from 0.40 (N08, basics only, 30 of 50 wrong) to 1.0 (N01, P01). Mean per-player accuracy is 0.775 for novices and 0.832 for pros.
