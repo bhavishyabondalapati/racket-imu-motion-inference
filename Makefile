@@ -57,6 +57,6 @@ train-final:
 latency: train-final
 	$(PYTHON) scripts/latency.py
 report:
-	$(call not_yet,D9)
+	$(PYTHON) scripts/report.py
 
 all: preprocess classify quality skill ablation errors latency report
