@@ -227,3 +227,28 @@ Each entry: what was chosen, the alternatives considered, and why. Newest milest
 
 ### Results layout (`results/<run_id>/`)
 - `report.md` (all tables), `metrics.json` (per-seed metrics, checks, confusion counts), `oof_predictions.csv.gz` (every out-of-fold prediction with raw and calibrated probabilities), `config.yaml`, `run.json` (git commit, dirty flag, hardware, versions, duration), `confusion.png`, `reliability.png`. These are committed: they are small, contain no raw data, and the README must cite them.
+
+### D3 results and findings (run `d3_20261101T032754Z`, commit `ab928dd`)
+All numbers below are from `results/d3_20261101T032754Z/report.md`: pooled out-of-fold over 15 LOPO folds, mean ± std over 3 seeds, uncalibrated.
+
+| model | macro-F1 | accuracy |
+|---|---|---|
+| Majority class | 0.222 | 0.500 |
+| RF, handcrafted (primary) | 0.798 ± 0.007 | 0.808 ± 0.006 |
+| 1D CNN | 0.786 ± 0.016 | 0.794 ± 0.008 |
+| GRU | 0.788 ± 0.014 | 0.792 ± 0.017 |
+| Leak check: RF on channel means only | 0.803 ± 0.003 | 0.813 ± 0.003 |
+| Motion-only: RF with channel means removed | 0.667 ± 0.006 | 0.697 ± 0.005 |
+| Heading check: RF + yaw and magnetometer | 0.802 ± 0.005 | 0.814 ± 0.006 |
+| Length check: RF on real-row count | 0.307 ± 0.003 | 0.314 ± 0.004 |
+
+- **Reproduction check (owner's request):** the first run and an identical rerun gave the same predicted class for every one of the 25,536 out-of-fold rows, and bit-identical probabilities for the majority baseline and every random forest. The CNN and GRU differed in probabilities (up to 0.11) for one fold only (N01, seed 0). **Cause:** `run_deep` built the model before seeding, so the very first deep model's initial weights depended on whatever random state the process had. Fixed in `ab928dd` (seed set before building the model, with a unit test). In a fresh process with a deliberately different prior random state, the fixed code reproduces the saved N01 / seed 0 probabilities exactly (max difference 0.0) for both models. The deep-model numbers above come from the fixed code; the two earlier runs are superseded and not kept.
+- **Calibration:** uncalibrated probabilities are the primary result (owner's decision). Temperature scaling fitted on the 2 inner validation players **did not transfer** to the unseen test player: ECE got worse for every model (RF 0.052 → 0.089, CNN 0.070 → 0.108, GRU 0.105 → 0.122, mean-only RF 0.048 → 0.082). For the length check the fitted temperature hit the upper bound (20), which only flattens a model that has learned almost nothing. Two players are too few, and too unlike the test player, to estimate a temperature that generalises.
+- **Leak-check interpretation (hedged):** a forest that sees only each sample's average channel values (mean acceleration direction, mean gyro, mean roll and pitch) matches the full handcrafted forest (0.803 vs 0.798) and both deep models. Mean racket orientation alone carries essentially all the information the models use, so classification relies on **static racket angle rather than swing dynamics**. This is consistent with racket-face angle differences between push and drive strokes: push is recognised almost perfectly (99% recall), while basic and topspin, both drives, are the main confusion. It is also consistent with the D2 undersampling finding. **A recording-block artifact cannot be ruled out:** each stroke type was recorded in its own block, so a sensor-mounting or posture difference shared by most players' blocks would look the same. LOPO does remove artifacts specific to one player.
+- **Motion-only check:** with each sample's channel means removed, the forest still reaches 0.667 macro-F1 (+0.445 over majority, −0.131 vs the full forest). So there is some class information in the motion itself, but much less than in the static orientation.
+- **Heading check:** +0.004 macro-F1, below the pre-registered 0.02 rule, so not flagged. Yaw and the magnetometer add nothing measurable, and 6 of 15 test players get better with them while 9 do not.
+- **Length check:** +0.085 over majority, below the pre-registered 0.10 rule, so not flagged, but close. File length carries a little class information on its own.
+- **Error pattern:** push is almost never confused (99% recall for every model). Basic and topspin are confused in both directions (18-24% of basics predicted as topspin, 33-37% of topspins as basic).
+- **Per-player spread is large:** per-player macro-F1 (over that player's own classes) for the RF ranges from 0.556 (P03) to 1.0 (N01, P01). N03, N04 and P04 are hard for every model.
+- **Deep vs forest:** the CNN and GRU do not beat the handcrafted forest. Their seed std (0.014-0.016) is larger than the gaps between the three.
+- **Best deep model for D4-D6:** GRU (0.788 vs CNN 0.786), chosen by the rule "highest mean pooled macro-F1". The two are tied within seed noise; see `docs/REVIEW_QUEUE.md`. Choosing on test folds is a small optimistic bias, as noted above.
