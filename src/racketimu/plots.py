@@ -307,8 +307,8 @@ def plot_ablation_deltas(rf_summary: pd.DataFrame, out: Path) -> None:
             error_kw={"ecolor": MUTED, "capsize": 2, "linewidth": 1})  # fmt: skip
     ax.axvline(0, color=MUTED, linewidth=0.8)
     ax.set_yticks(y, s["label"], fontsize=8, color=INK_2)
-    for yi, v in zip(y, s["delta_mean"], strict=True):
-        ax.text(v + (0.005 if v >= 0 else -0.005), yi, f"{v:+.3f}", va="center",
+    for yi, v, e in zip(y, s["delta_mean"], s["delta_std"].fillna(0), strict=True):
+        ax.text(v + (e + 0.006 if v >= 0 else -e - 0.006), yi, f"{v:+.3f}", va="center",
                 ha="left" if v >= 0 else "right", fontsize=8, color=INK)  # fmt: skip
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)

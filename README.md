@@ -10,7 +10,7 @@ This project takes a public dataset of table tennis forehands, recorded with a s
 
 The data and its original analysis belong to these authors. This project's contribution is its own evaluation protocol (leave-one-player-out), analysis, ablations, and inference interface. It makes no claim of novelty over the original work. The raw data is not redistributed here: download it from Mendeley Data (see Setup).
 
-> **Status: D3 done (stroke type classification); D6, D4, D5, D7, D8, D9 in progress.** Full results will be summarised here in D9. The data itself is described in [docs/DATASET.md](docs/DATASET.md): 1344 of the authors' 1570 cleaned samples are usable, from 15 players.
+> **Status: D3 and D6 done; D4, D5, D7, D8, D9 in progress.** Full results will be summarised here in D9. The data itself is described in [docs/DATASET.md](docs/DATASET.md): 1344 of the authors' 1570 cleaned samples are usable, from 15 players.
 
 ## Results
 
@@ -107,7 +107,9 @@ The remaining pipeline steps (`make preprocess`, … `make report`, `make all`) 
 
 5. **D3, stroke type:** majority baseline, random forests (including shortcut checks), a small CNN and a GRU, all under 15-fold leave-one-player-out with 3 seeds. A reproduction check found and fixed a seeding bug before the final run.
 
-Later milestones (D6 ablation → D9 report) will be added here as they are completed.
+6. **D6, sparsity ablation:** the same protocol rerun with fewer rows, fewer sensors, shorter windows, and with each sample's average removed. Only removing the static orientation (or keeping only the gyroscope) hurt.
+
+Later milestones (D4 quality → D9 report) will be added here as they are completed.
 
 ## Key concepts
 

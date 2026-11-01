@@ -104,7 +104,7 @@ def d6_section(d6: Path) -> list[str]:
     s = pd.DataFrame(_json(d6 / "metrics.json"))
     lines = ["## Sparsity ablation (D6)", ""]
     for model in s["model"].unique():
-        t = s[s["model"] == model]
+        t = s[s["model"] == model].assign(label=lambda d: d["label"].str.replace("2th", "2nd"))
         lines += [
             f"**{'Random forest' if model == 'rf' else model.upper()}**",
             "",
@@ -126,6 +126,7 @@ def d6_section(d6: Path) -> list[str]:
             ),
             "",
         ]
+    s = s.assign(label=s["label"].str.replace("2th", "2nd"))
     rf = s[(s["model"] == "rf") & (s["condition"] != "full")].sort_values("delta_mean")
     worst = rf.head(3)
     lines += [

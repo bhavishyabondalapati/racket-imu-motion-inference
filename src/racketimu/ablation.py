@@ -33,6 +33,10 @@ class Condition:
     extra: dict = field(default_factory=dict)
 
 
+def _ordinal(k: int) -> str:
+    return f"{k}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(k if k < 20 else k % 10, 'th') }"
+
+
 def channel_sets(cfg: dict) -> dict[str, list[str]]:
     primary, heading = cfg["channels"]["primary"], cfg["channels"]["heading"]
     return {
@@ -59,7 +63,7 @@ def conditions(cfg: dict) -> list[Condition]:
                 "primary",
                 stride=k,
                 deep=(k == max(strides)),
-                label=f"Every {k}th row",
+                label=f"Every {_ordinal(k)} row",
             )
             for k in strides
             if k != 1

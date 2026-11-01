@@ -252,3 +252,30 @@ All numbers below are from `results/d3_20261101T032754Z/report.md`: pooled out-o
 - **Per-player spread is large:** per-player macro-F1 (over that player's own classes) for the RF ranges from 0.556 (P03) to 1.0 (N01, P01). N03, N04 and P04 are hard for every model.
 - **Deep vs forest:** the CNN and GRU do not beat the handcrafted forest. Their seed std (0.014-0.016) is larger than the gaps between the three.
 - **Best deep model for D4-D6:** GRU (0.788 vs CNN 0.786), chosen by the rule "highest mean pooled macro-F1". The two are tied within seed noise; see `docs/REVIEW_QUEUE.md`. Choosing on test folds is a small optimistic bias, as noted above.
+
+## D6: Sparsity ablation (2026-11-01)
+
+### Design
+- Same protocol as D3: the same 15 LOPO folds, inner validation players, model hyperparameters, CPU and 3 seeds. Only the input changes. The RF runs on every condition with handcrafted features of the channels in that condition. Motion features are computed only for the channel groups present, so the D3 features are unchanged (verified bit-for-bit). The GRU, the best D3 deep model, runs on full data, every 4th row, and motion-only (owner's instruction, to save time).
+- **Row stride:** keep window rows whose position relative to the peak is a multiple of k. The peak row is always kept, and the window spans the same time with k times fewer rows (about 8, 4, and 2 rows per second).
+- **Window length:** 75% and 50% windows keep the peak at the same relative position (36 rows with 12 before the peak; 24 rows with 8 before).
+- **Motion-only:** each sample's per-channel mean over real rows is removed, both from the RF features (as in D3) and from the GRU input.
+- Δ is the per-seed difference from the same model on full data, then averaged.
+
+### Results (run `d6_20261101T034227Z`, commit `8ab3698`)
+| condition | RF macro-F1 | Δ vs full | GRU macro-F1 | Δ vs full |
+|---|---|---|---|---|
+| Full data (primary, every row, 48 rows) | 0.798 ± 0.007 | - | 0.788 ± 0.014 | - |
+| Every 2nd row (~4 rows/s) | 0.808 ± 0.003 | +0.010 | | |
+| Every 4th row (~2 rows/s) | 0.799 ± 0.004 | +0.002 | 0.797 ± 0.004 | +0.009 |
+| Accelerometer only | 0.798 ± 0.003 | +0.000 | | |
+| Gyroscope only | 0.735 ± 0.001 | −0.063 | | |
+| Accelerometer + gyroscope | 0.801 ± 0.001 | +0.003 | | |
+| Primary + heading | 0.802 ± 0.005 | +0.004 | | |
+| Window 75% | 0.802 ± 0.004 | +0.004 | | |
+| Window 50% | 0.808 ± 0.002 | +0.011 | | |
+| Motion-only | 0.667 ± 0.006 | −0.131 | 0.629 ± 0.021 | −0.159 |
+
+- **Reproduction check:** the full-data condition gives exactly the same out-of-fold predictions as D3 for both the RF and the GRU (all 4032 seed-sample pairs each).
+- **What hurts most, stated plainly:** only two reductions hurt. Removing each sample's channel means (motion-only) costs 0.131 (RF) and 0.159 (GRU) macro-F1. Using the gyroscope alone costs 0.063. **Nothing else hurts:** cutting the rate to every 4th row (about 2 rows per second), halving the window, or dropping the gyroscope and the Euler angles (accelerometer only) all stay within about ±0.01 of full data, which is the size of the seed noise. Some reductions even score slightly higher, within noise.
+- **Interpretation (hedged, consistent with D3):** the accelerometer at rest measures the direction of gravity, which is the racket's orientation, and orientation is what the models use. Anything that keeps orientation keeps the performance; the two conditions that remove it (motion-only, gyroscope only) lose it. For this dataset the answer to "how much sensor data is needed" is: very little, a 3-axis accelerometer at about 2 rows per second over the stroke. But that is because the task is solved through static racket angle, not swing dynamics, so it may not hold for tasks that need motion.

@@ -1,0 +1,145 @@
+[
+  {
+    "condition": "full",
+    "model": "gru",
+    "f1_mean": 0.7880483055482838,
+    "f1_std": 0.014336268437305795,
+    "acc_mean": 0.7919146825396824,
+    "delta_mean": 0.0,
+    "delta_std": 0.0,
+    "group": "reference",
+    "label": "Full data (primary, stride 1, 100%)"
+  },
+  {
+    "condition": "stride_4",
+    "model": "gru",
+    "f1_mean": 0.7967435348685772,
+    "f1_std": 0.004125686480636815,
+    "acc_mean": 0.8000992063492064,
+    "delta_mean": 0.008695229320293466,
+    "delta_std": 0.014507655741907498,
+    "group": "rate",
+    "label": "Every 4th row"
+  },
+  {
+    "condition": "motion_only",
+    "model": "gru",
+    "f1_mean": 0.62889973380443,
+    "f1_std": 0.020530909602296303,
+    "acc_mean": 0.6314484126984127,
+    "delta_mean": -0.15914857174385377,
+    "delta_std": 0.013809684776236026,
+    "group": "motion",
+    "label": "Motion-only (each sample's channel means removed)"
+  },
+  {
+    "condition": "full",
+    "model": "rf",
+    "f1_mean": 0.7979305401374396,
+    "f1_std": 0.006544894915618059,
+    "acc_mean": 0.8080357142857143,
+    "delta_mean": 0.0,
+    "delta_std": 0.0,
+    "group": "reference",
+    "label": "Full data (primary, stride 1, 100%)"
+  },
+  {
+    "condition": "stride_2",
+    "model": "rf",
+    "f1_mean": 0.8075707399110642,
+    "f1_std": 0.0033980615285293257,
+    "acc_mean": 0.8187003968253969,
+    "delta_mean": 0.009640199773624661,
+    "delta_std": 0.0064908723135763385,
+    "group": "rate",
+    "label": "Every 2th row"
+  },
+  {
+    "condition": "stride_4",
+    "model": "rf",
+    "f1_mean": 0.799451465277409,
+    "f1_std": 0.0035393869188480327,
+    "acc_mean": 0.8127480158730158,
+    "delta_mean": 0.0015209251399693018,
+    "delta_std": 0.008553998336980615,
+    "group": "rate",
+    "label": "Every 4th row"
+  },
+  {
+    "condition": "acc_only",
+    "model": "rf",
+    "f1_mean": 0.7981954689797276,
+    "f1_std": 0.0030195620344799856,
+    "acc_mean": 0.8082837301587301,
+    "delta_mean": 0.0002649288422879777,
+    "delta_std": 0.004874198472888787,
+    "group": "sensors",
+    "label": "Accelerometer only"
+  },
+  {
+    "condition": "gyro_only",
+    "model": "rf",
+    "f1_mean": 0.734597258572253,
+    "f1_std": 0.0011063730111346547,
+    "acc_mean": 0.7557043650793651,
+    "delta_mean": -0.06333328156518658,
+    "delta_std": 0.007645560419940623,
+    "group": "sensors",
+    "label": "Gyroscope only"
+  },
+  {
+    "condition": "acc_gyro",
+    "model": "rf",
+    "f1_mean": 0.80111951148973,
+    "f1_std": 0.0013220174276446799,
+    "acc_mean": 0.8134920634920636,
+    "delta_mean": 0.0031889713522904595,
+    "delta_std": 0.0052354384712562105,
+    "group": "sensors",
+    "label": "Accelerometer + gyroscope"
+  },
+  {
+    "condition": "primary_heading",
+    "model": "rf",
+    "f1_mean": 0.802334602441905,
+    "f1_std": 0.005243496885856869,
+    "acc_mean": 0.8137400793650794,
+    "delta_mean": 0.00440406230446555,
+    "delta_std": 0.0062308453854420555,
+    "group": "sensors",
+    "label": "Primary + heading (yaw, mag)"
+  },
+  {
+    "condition": "window_75",
+    "model": "rf",
+    "f1_mean": 0.8016125851710695,
+    "f1_std": 0.003743388888523455,
+    "acc_mean": 0.8117559523809524,
+    "delta_mean": 0.0036820450336298993,
+    "delta_std": 0.006286216955220938,
+    "group": "window",
+    "label": "Window 75%"
+  },
+  {
+    "condition": "window_50",
+    "model": "rf",
+    "f1_mean": 0.8084430962185424,
+    "f1_std": 0.0024809737620285935,
+    "acc_mean": 0.8199404761904762,
+    "delta_mean": 0.010512556081102686,
+    "delta_std": 0.005158232648469646,
+    "group": "window",
+    "label": "Window 50%"
+  },
+  {
+    "condition": "motion_only",
+    "model": "rf",
+    "f1_mean": 0.6669905405233844,
+    "f1_std": 0.0056806013257666025,
+    "acc_mean": 0.6971726190476191,
+    "delta_mean": -0.13093999961405525,
+    "delta_std": 0.006100237640100493,
+    "group": "motion",
+    "label": "Motion-only (each sample's channel means removed)"
+  }
+]

@@ -14,7 +14,11 @@ Decisions taken while the owner was offline (2026-11-01), each with the more con
 5. **Row stride** keeps window rows whose position relative to the peak is a multiple of k. The peak row is always kept and the window covers the same span with k times fewer rows. *Alternative:* stride the raw stroke from its first row (the peak could be dropped). *Why:* compares like with like and keeps the alignment of D2.
 6. **Window 75% and 50%** keep the peak at the same relative position (36 rows with 12 before the peak; 24 rows with 8 before). *Alternative:* centre the shorter window on the peak. *Why:* the same shape as the 48-row window chosen on coverage in D2.
 
+7. **D6 GRU conditions limited** to full data, every 4th row and motion-only (owner's instruction); the RF covers every condition.
+8. **D6 figure labels:** the committed D6 run's figure and report say "Every 2th row" (a label bug, fixed in code afterwards; `results/SUMMARY.md` shows "2nd"). The numbers are unaffected; the run was not repeated just for the label.
+
 ## Open questions for the owner
 1. **Calibration across players:** temperature fitted on 2 inner validation players made ECE worse on every model. A temperature fitted on more players (for example, inner leave-one-player-out over all training players) might transfer better, but that changes the inner protocol, so it was not done.
 2. **Leak check flagged:** mean orientation alone matches the full models. Separating "real racket-angle difference" from "recording-block artifact" would need data the dataset does not have, such as interleaved stroke types within one recording.
 3. **Length check close to its threshold** (+0.085 vs 0.10): worth keeping in mind when reading any model that sees the mask.
+4. **D6 says almost no data is needed** (accelerometer only at about 2 rows per second matches full data), but only because the task is solved through static racket angle. Whether to present this as a positive sparsity result or as a sign the task is too easy for this dataset is a framing choice for the write-up.
