@@ -27,6 +27,25 @@ Owner: Bhavishya Bondalapati. Package: `racketimu`. Repo: `racket-imu-motion-inf
 
 The owner downloads the files manually into `data/raw/tabrizi2020/`. Raw data is git-ignored.
 
+### Facts established in D1 (from the files and the authors' papers)
+
+- One raw CSV per stroke (`Raw/Sensory-Data/<id>.csv`, ids 1 to 1728). The `Processed/` files are the same rows zero-padded at the front to 70 rows.
+- C1 to C5 are five evaluation criteria. Each published value is the average of the 3 coaches; individual coach scores are not published, so agreement between coaches cannot be computed.
+- Strokes are shadow-play (no ball).
+- Stated sampling rate: 100 Hz (Data in Brief article) and 70 Hz (2021 Computational Intelligence and Neuroscience paper). Observed: about 9 rows per second. Report all three; do not speculate about the cause.
+- The 2021 paper's tables list 1525 samples per criterion, versus 1570 in the authors' cleaned set.
+- The Euler angle order is not documented.
+- Units (BNO055 defaults, checked against the data): acc raw/100 = m/s², gyro raw/16 = deg/s, mag raw/16 = µT, Euler angles in degrees.
+
+### Sample set and evaluation decisions (owner-approved in D1)
+
+- Start from the authors' cleaned ID set (the 1570 processed files) and load the rows from the Raw files. Do not re-add the 157 ids the authors removed.
+- Exclude the 3 empty raw files and the 223 files whose accelerometer and gyroscope are zero in every row, leaving 1344 samples. List every exclusion with its reason in `docs/DATASET.md`.
+- Keep exact duplicate rows, and report the duplicate rate.
+- Sample 720: follow the spreadsheet (player P05), not the scores CSV (P06), and note it.
+- Any model that uses accelerometer or gyroscope data uses 15 LOPO folds: P06 has 1 usable sample and is not used as a test player. Report which stroke classes each player has (e.g. P01 has basics only).
+- Pool out-of-fold predictions for the overall confusion matrix and macro-F1, and report per-fold results alongside.
+
 ## Ground rules (non-negotiable)
 
 1. Never fabricate data or results. Every number in `results/`, the README, or any summary must come from a script run on the real dataset. Synthetic data is allowed only in `tests/`.
@@ -48,14 +67,13 @@ M0 (scaffold, CI, config, seeding, CPU-default device) is complete and stays as 
 
 - Inspect `data/raw/tabrizi2020/` and report: file list, columns, units, sampling rate (mean and jitter), how strokes are delimited, how labels, coach scores, and player levels are stored, and any missing or inconsistent data.
 - Wait for the owner's OK, then write the loader.
-- Generate `docs/DATASET.md`: players, samples per class, per player, and per level, score distributions, agreement between the 3 coaches (e.g. correlation or ICC), sampling rate, and every exclusion with its reason.
-- Accept when: sample counts are reconciled with the dataset description (1570 samples, 16 players), or every difference is explained.
+- Generate `docs/DATASET.md` with `make inspect`: players, samples per class, per player, and per level, which stroke classes each player has, score distributions, sampling rate (stated vs observed), duplicate rate, and every exclusion with its reason. Agreement between coaches cannot be computed (only coach-averaged scores are published); say so instead.
+- Accept when: sample counts are reconciled with the dataset description (1570 samples, 16 players) and the 2021 paper (1525), or every difference is explained.
 
-### D2: Segmentation and preprocessing
+### D2: Preprocessing
 
-- If strokes are not already separated into individual samples, segment them (the protocol has 5-second pauses between strokes). Check detected counts against the labels.
-- Define a fixed window per stroke, aligned on peak angular velocity (configurable).
-- Use the dataset's orientation (Euler angles) to express acceleration in a gravity-aligned frame, and remove gravity. Document the frame conventions and the Euler angle order. Keep the raw sensor-frame signals available as an alternative input.
+- Strokes are already one per file, so no segmentation. At about 9 rows per second there is no peak-based time window: each stroke file is one sample, padded or cropped to a fixed number of rows (configurable, default 32) centered on the row with peak gyro magnitude, with a mask marking real rows.
+- No world-frame or gravity-removal transform, because the Euler angle order is not documented. Inputs are sensor-frame acceleration and angular velocity (converted units) and the Euler angles as separate channels. Record this in DESIGN.md.
 - Save `data/processed/strokes.parquet`. Commit it only if it contains no personal data; otherwise git-ignore it.
 - Accept when: plots of a few strokes per class look sensible (saved to `docs/figures/`).
 
@@ -63,18 +81,19 @@ M0 (scaffold, CI, config, seeding, CPU-default device) is complete and stays as 
 
 - Baselines: majority class, then a random forest on handcrafted features (per-axis statistics, peak angular velocity, orientation change, window energy).
 - Deep models: a small 1D CNN and a small GRU in PyTorch, 3 seeds, reported as mean ± std.
-- Protocol: outer LOPO (16 folds), with an inner validation split by player for early stopping and temperature scaling.
-- Metrics: accuracy, macro-F1, confusion matrix, per-player and per-level (novice vs pro) breakdowns.
+- Protocol: outer LOPO (15 folds; P06 is not a test player), with an inner validation split by player for early stopping and temperature scaling.
+- Metrics: accuracy, macro-F1, confusion matrix (pooled out-of-fold predictions), per-fold results, per-player and per-level (novice vs pro) breakdowns.
 - Calibration: expected calibration error before and after temperature scaling, plus a reliability diagram.
 - Accept when: results are saved under `results/<run_id>/` with the config, commit hash, and metrics JSON.
 
 ### D4: Stroke quality estimation
 
-- Predict the coach quality score from the IMU window. If there are several score metrics, handle each separately or explain why they are combined.
-- Baselines: the mean training score, and the per-class mean score.
+- Predict each criterion C1 to C5 separately, and their mean, from the IMU window.
+- Baselines: the mean training score, the per-class mean score, and the mean training score for the test player's level. Scores depend strongly on level, so the model only counts as judging stroke quality if it beats the level-only baseline.
+- Also evaluate within each level (novices only, pros only).
 - Models: the random forest regressor and the better of the CNN/GRU, under LOPO.
-- Metrics: MAE and Spearman correlation, compared with the agreement between coaches from D1. The coaches' agreement is the ceiling; a model cannot be expected to beat the coaches' consistency with each other.
-- Accept when: the report states whether the model beats the baselines on unseen players, and how close it gets to the agreement between coaches.
+- Metrics: MAE and Spearman correlation. There is no coach-agreement ceiling: only coach-averaged scores are published, so coach agreement cannot be computed. Say this in the report.
+- Accept when: the report states whether the model beats each baseline, in particular the level-only baseline, on unseen players.
 
 ### D5: Skill level and cross-group generalization
 
@@ -86,7 +105,7 @@ M0 (scaffold, CI, config, seeding, CPU-default device) is complete and stays as 
 
 Re-run the best stroke-type model and the best quality model under LOPO with:
 
-- sampling rate: native, 1/2, and 1/4 (resample properly with anti-aliasing)
+- sampling rate: keep every row, every 2nd row, and every 4th row (native is about 9 rows per second)
 - sensors: accelerometer only, gyroscope only, accelerometer + gyroscope, all including magnetometer and orientation
 - window length: 100%, 75%, 50% of default
 
@@ -114,7 +133,9 @@ Report each condition against the full-data result, mean ± std over seeds, and 
 - The limitations must include:
   - table tennis rather than tennis
   - forehands only
-  - shadow strokes rather than ball strikes, if the dataset documentation confirms this
+  - shadow strokes rather than ball strikes (confirmed by the authors' papers)
+  - a very low observed sampling rate (about 9 rows per second, versus 100 Hz / 70 Hz stated)
+  - coach-averaged scores only, so no coach-agreement ceiling
   - no synchronized video or motion capture, so body motion cannot be inferred or validated
   - 16 players
   - a single sensor placement
