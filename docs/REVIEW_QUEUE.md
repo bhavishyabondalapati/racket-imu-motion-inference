@@ -1,5 +1,9 @@
 # Review queue
 
+## Owner decisions after review (2026-11-01)
+- **Open question 1 (calibration across players):** do not refit on more players. The finding stays as written: temperature fitted on 2 inner validation players did not transfer, and confidences are reported uncalibrated.
+- **Open question 5 (quality output):** removed from the default `infer()` output and CLI. The D4 results and code stay. Quality is available only behind an explicit flag (`experimental_quality=True`, CLI `--experimental-quality`), documented as "does not beat a level-only baseline; experimental". This supersedes decision 15 below.
+
 Decisions taken while the owner was offline (2026-11-01), each with the more conservative option, plus open questions. Nothing here changes the evaluation protocol (15-fold LOPO, P06 not a test player, no leakage, CPU, 3 seeds) or the pre-registered check thresholds.
 
 ## Decisions

@@ -65,9 +65,9 @@ def main() -> int:
         "max_ms": float(t.max()),
         "cpu": cpu_name(),
         "logical_cpus": os.cpu_count(),
-        "what_is_timed": "infer(): angle encoding, windowing, 47 handcrafted features, "
-        "RF classifier (300 trees) and 6 RF regressors (300 trees each), "
-        "single thread, one stroke at a time",
+        "what_is_timed": "default infer() (no experimental quality): angle encoding, "
+        "windowing, 47 handcrafted features, RF classifier (300 trees), single thread, "
+        "one stroke at a time",
     }
     (out / "latency.json").write_text(json.dumps(result, indent=2))
     lines = [
