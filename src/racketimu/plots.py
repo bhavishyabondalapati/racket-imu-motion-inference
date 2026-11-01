@@ -74,19 +74,34 @@ def plot_examples(
             for lo, hi in _padding_spans(w):
                 ax.axvspan(lo - 0.5, hi + 0.5, color=PAD_FILL, linewidth=0)
             for k, ch in enumerate(channels):
-                ax.plot(real["pos"], real[ch], color=SERIES[k], linestyle=STYLES[k],
-                        linewidth=1.6, label=ch)  # fmt: skip
+                ax.plot(
+                    real["pos"],
+                    real[ch],
+                    color=SERIES[k],
+                    linestyle=STYLES[k],
+                    linewidth=1.6,
+                    label=ch,
+                )
             meta = w.iloc[0]
-            ax.set_title(f"{stroke.title()} · id {meta.sample_id} · {meta.player} ({meta.level})",
-                         fontsize=8.5, color=INK, loc="left")  # fmt: skip
+            ax.set_title(
+                f"{stroke.title()} · id {meta.sample_id} · {meta.player} ({meta.level})",
+                fontsize=8.5,
+                color=INK,
+                loc="left",
+            )
             if c == 0:
                 ax.set_ylabel(unit, fontsize=8, color=INK_2)
             if r == len(picks) - 1:
                 ax.set_xlabel("rows from peak gyro row", fontsize=8, color=INK_2)
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper right", ncol=len(channels), fontsize=8, frameon=False)
-    fig.suptitle(f"Example strokes per class: {', '.join(channels)} (shaded = padding)",
-                 x=0.01, ha="left", fontsize=10, color=INK)  # fmt: skip
+    fig.suptitle(
+        f"Example strokes per class: {', '.join(channels)} (shaded = padding)",
+        x=0.01,
+        ha="left",
+        fontsize=10,
+        color=INK,
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150, facecolor=SURFACE)
@@ -118,13 +133,24 @@ def plot_class_profiles(windows: pd.DataFrame, out: Path) -> None:
             q = g.quantile([0.25, 0.5, 0.75]).unstack()
             n = w.loc[w["stroke"] == stroke, "sample_id"].nunique()
             ax.fill_between(q.index, q[0.25], q[0.75], color=SERIES[k], alpha=0.15, linewidth=0)
-            ax.plot(q.index, q[0.5], color=SERIES[k], linestyle=STYLES[k], linewidth=2,
-                    label=f"{stroke.title()} (n={n})")  # fmt: skip
+            ax.plot(
+                q.index,
+                q[0.5],
+                color=SERIES[k],
+                linestyle=STYLES[k],
+                linewidth=2,
+                label=f"{stroke.title()} (n={n})",
+            )
         ax.set_ylabel(label, fontsize=8, color=INK_2)
         ax.set_xlabel("rows from peak gyro row", fontsize=8, color=INK_2)
     axes[0].legend(fontsize=8, frameon=False)
-    fig.suptitle("Per-class median and interquartile range, real rows only",
-                 x=0.01, ha="left", fontsize=10, color=INK)  # fmt: skip
+    fig.suptitle(
+        "Per-class median and interquartile range, real rows only",
+        x=0.01,
+        ha="left",
+        fontsize=10,
+        color=INK,
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150, facecolor=SURFACE)
@@ -138,14 +164,102 @@ def plot_coverage(windows: pd.DataFrame, out: Path) -> None:
     _style_axes(ax)
     for k, stroke in enumerate(io.STROKES):
         share = windows[windows["stroke"] == stroke].groupby("pos")["mask"].mean()
-        ax.plot(share.index, share * 100, color=SERIES[k], linestyle=STYLES[k], linewidth=2,
-                label=stroke.title())  # fmt: skip
+        ax.plot(
+            share.index,
+            share * 100,
+            color=SERIES[k],
+            linestyle=STYLES[k],
+            linewidth=2,
+            label=stroke.title(),
+        )
     ax.set_ylim(0, 102)
     ax.set_ylabel("strokes with a real row (%)", fontsize=8, color=INK_2)
     ax.set_xlabel("rows from peak gyro row", fontsize=8, color=INK_2)
     ax.legend(fontsize=8, frameon=False)
     ax.set_title("Window coverage per class", fontsize=10, color=INK, loc="left")
     fig.tight_layout()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150, facecolor=SURFACE)
+    plt.close(fig)
+
+
+BLUE_RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
+
+
+def plot_confusions(matrices: dict[str, np.ndarray], classes: list[str], out: Path) -> None:
+    """Row-normalized confusion matrices side by side; cells show count and row share."""
+    from matplotlib.colors import LinearSegmentedColormap
+
+    cmap = LinearSegmentedColormap.from_list("blue", ["#f0efec", *BLUE_RAMP])
+    fig, axes = plt.subplots(1, len(matrices), figsize=(3.6 * len(matrices), 3.4))
+    fig.patch.set_facecolor(SURFACE)
+    for ax, (title, counts) in zip(np.atleast_1d(axes), matrices.items(), strict=True):
+        share = counts / counts.sum(axis=1, keepdims=True)
+        ax.imshow(share, cmap=cmap, vmin=0, vmax=1)
+        for i in range(len(classes)):
+            for j in range(len(classes)):
+                ink = "#ffffff" if share[i, j] > 0.55 else INK
+                ax.text(
+                    j,
+                    i,
+                    f"{counts[i, j]}\n{share[i, j]:.0%}",
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    color=ink,
+                )
+        ax.set_xticks(range(len(classes)), [c.title() for c in classes], fontsize=8, color=INK_2)
+        ax.set_yticks(range(len(classes)), [c.title() for c in classes], fontsize=8, color=INK_2)
+        ax.set_xlabel("predicted", fontsize=8, color=INK_2)
+        ax.set_ylabel("true", fontsize=8, color=INK_2)
+        ax.set_title(title, fontsize=9, color=INK, loc="left")
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+    fig.suptitle(
+        "Pooled out-of-fold confusion matrices (counts summed over seeds; % of true class)",
+        x=0.01,
+        ha="left",
+        fontsize=10,
+        color=INK,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def plot_reliability(tables: dict[str, dict[str, pd.DataFrame]], out: Path) -> None:
+    """Reliability diagrams: accuracy vs confidence per bin, before and after temperature T."""
+    fig, axes = plt.subplots(1, len(tables), figsize=(3.6 * len(tables), 3.6), sharey=True)
+    fig.patch.set_facecolor(SURFACE)
+    for ax, (title, pair) in zip(np.atleast_1d(axes), tables.items(), strict=True):
+        ax.set_facecolor(SURFACE)
+        ax.grid(True, color=GRID, linewidth=0.6)
+        ax.plot([0, 1], [0, 1], color=MUTED, linewidth=1, linestyle=(0, (2, 2)), label="perfect")
+        for k, (label, t) in enumerate(pair.items()):
+            ax.plot(
+                t["confidence"],
+                t["accuracy"],
+                color=SERIES[k],
+                linestyle=STYLES[k],
+                linewidth=2,
+                marker="o",
+                markersize=4,
+                label=label,
+            )
+        ax.set_xlim(0.3, 1.0)
+        ax.set_ylim(0, 1.0)
+        ax.set_xlabel("confidence (top class)", fontsize=8, color=INK_2)
+        ax.set_title(title, fontsize=9, color=INK, loc="left")
+        ax.tick_params(colors=MUTED, labelsize=8)
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
+    np.atleast_1d(axes)[0].set_ylabel("accuracy", fontsize=8, color=INK_2)
+    np.atleast_1d(axes)[0].legend(fontsize=8, frameon=False, loc="upper left")
+    fig.suptitle(
+        "Reliability (pooled out-of-fold, all seeds)", x=0.01, ha="left", fontsize=10, color=INK
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150, facecolor=SURFACE)
     plt.close(fig)

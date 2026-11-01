@@ -105,3 +105,27 @@ def to_arrays(
     mask = ordered["mask"].to_numpy(bool).reshape(n_samples, n_rows)
     meta = ordered.groupby("sample_id", sort=True)[[*META[1:], "n_rows"]].first().reset_index()
     return x, mask, meta
+
+
+def lopo_test_players(meta: pd.DataFrame, excluded: list[str]) -> list[str]:
+    """Players used as LOPO test folds: every player with samples, minus the excluded ones."""
+    return sorted(p for p in meta["player"].unique() if p not in set(excluded))
+
+
+def inner_validation_players(
+    train_meta: pd.DataFrame, per_level: dict[str, int], seed: int
+) -> list[str]:
+    """Pick validation players from the training players only, per level.
+
+    Players with all three stroke classes are preferred, so early stopping and
+    temperature scaling see every class. The choice depends only on `seed`.
+    """
+    rng = np.random.default_rng(seed)
+    classes = train_meta.groupby("player")["stroke"].nunique()
+    chosen: list[str] = []
+    for level, n in per_level.items():
+        players = sorted(train_meta.loc[train_meta["level"] == level, "player"].unique())
+        full = [p for p in players if classes[p] == len(io.STROKES)]
+        pool = full if len(full) >= n else players
+        chosen += sorted(rng.choice(pool, size=min(n, len(pool)), replace=False).tolist())
+    return chosen

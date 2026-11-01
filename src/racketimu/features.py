@@ -1,0 +1,90 @@
+"""Handcrafted per-stroke features for the random-forest baselines (D3).
+
+All statistics use real rows only (mask True). Every feature is computed from one
+sample at a time, so nothing here can leak information between samples or folds.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+
+from racketimu import io
+
+GRAVITY = 9.81
+
+
+def _masked(x: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """Copy of x [N, T, C] with padded rows set to NaN."""
+    out = x.astype(np.float64)
+    out[~mask] = np.nan
+    return out
+
+
+def _first_last(values: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """First and last real value per sample for a [N, T] array."""
+    first = mask.argmax(axis=1)
+    last = mask.shape[1] - 1 - mask[:, ::-1].argmax(axis=1)
+    rows = np.arange(len(values))
+    return values[rows, first], values[rows, last]
+
+
+def channel_stats(
+    x: np.ndarray, mask: np.ndarray, channels: list[str]
+) -> tuple[np.ndarray, list[str]]:
+    """Mean, std, min and max of every channel over real rows."""
+    xm = _masked(x, mask)
+    stats = {"mean": np.nanmean, "std": np.nanstd, "min": np.nanmin, "max": np.nanmax}
+    feats = [fn(xm, axis=1) for fn in stats.values()]
+    names = [f"{c}_{s}" for s in stats for c in channels]
+    return np.concatenate(feats, axis=1), names
+
+
+def motion_features(
+    x: np.ndarray, mask: np.ndarray, channels: list[str]
+) -> tuple[np.ndarray, list[str]]:
+    """Peak angular velocity, window energy, orientation change (needs acc, gyro, roll, pitch)."""
+    idx = {c: channels.index(c) for c in channels}
+    xm = _masked(x, mask)
+    gyro = np.linalg.norm(xm[:, :, [idx[c] for c in io.GYRO]], axis=2)
+    acc = np.linalg.norm(xm[:, :, [idx[c] for c in io.ACC]], axis=2)
+    roll_first, roll_last = _first_last(x[:, :, idx["roll_deg"]], mask)
+    pitch = np.arctan2(x[:, :, idx["pitch_sin"]], x[:, :, idx["pitch_cos"]])
+    pitch_first, pitch_last = _first_last(pitch, mask)
+    pitch_change = np.degrees(np.angle(np.exp(1j * (pitch_last - pitch_first))))
+    roll_path = np.nansum(np.abs(np.diff(xm[:, :, idx["roll_deg"]], axis=1)), axis=1)
+    pitch_steps = np.angle(np.exp(1j * np.diff(np.where(mask, pitch, np.nan), axis=1)))
+    feats = {
+        "gyro_mag_peak": np.nanmax(gyro, axis=1),
+        "gyro_mag_mean": np.nanmean(gyro, axis=1),
+        "gyro_energy": np.nanmean(gyro**2, axis=1),
+        "acc_mag_mean": np.nanmean(acc, axis=1),
+        "acc_mag_std": np.nanstd(acc, axis=1),
+        "acc_mag_peak": np.nanmax(acc, axis=1),
+        "acc_dynamic_energy": np.nanmean((acc - GRAVITY) ** 2, axis=1),
+        "roll_change": roll_last - roll_first,
+        "pitch_change": pitch_change,
+        "roll_path": roll_path,
+        "pitch_path": np.degrees(np.nansum(np.abs(pitch_steps), axis=1)),
+    }
+    return np.column_stack(list(feats.values())), list(feats)
+
+
+def handcrafted_features(
+    x: np.ndarray, mask: np.ndarray, channels: list[str]
+) -> tuple[np.ndarray, list[str]]:
+    """Channel statistics for every channel, plus motion features from the primary channels."""
+    stats, stat_names = channel_stats(x, mask, channels)
+    motion, motion_names = motion_features(x, mask, channels)
+    return np.concatenate([stats, motion], axis=1), stat_names + motion_names
+
+
+def mean_features(
+    x: np.ndarray, mask: np.ndarray, channels: list[str]
+) -> tuple[np.ndarray, list[str]]:
+    """Per-sample mean of each channel only: no information about the motion's shape."""
+    return np.nanmean(_masked(x, mask), axis=1), [f"{c}_mean" for c in channels]
+
+
+def length_features(mask: np.ndarray) -> tuple[np.ndarray, list[str]]:
+    """Number of real rows in the window only."""
+    return mask.sum(axis=1, keepdims=True).astype(np.float64), ["real_rows"]

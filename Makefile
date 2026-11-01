@@ -41,7 +41,7 @@ inspect:
 preprocess:
 	$(PYTHON) scripts/preprocess.py
 classify:
-	$(call not_yet,D3)
+	$(PYTHON) scripts/classify.py
 quality:
 	$(call not_yet,D4)
 skill:
