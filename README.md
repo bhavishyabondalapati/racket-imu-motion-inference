@@ -10,7 +10,7 @@ This project takes a public dataset of table tennis forehands, recorded with a s
 
 The data and its original analysis belong to these authors. This project's contribution is its own evaluation protocol (leave-one-player-out), analysis, ablations, and inference interface. It makes no claim of novelty over the original work. The raw data is not redistributed here: download it from Mendeley Data (see Setup).
 
-> **Status: M0 done; D1 (data inspection) next.** No data has been processed yet, so there are no results.
+> **Status: D1 done (data inspection, loader, dataset card); D2 (preprocessing) next.** No models have been trained yet, so there are no results. The data itself is described in [docs/DATASET.md](docs/DATASET.md): 1344 of the authors' 1570 cleaned samples are usable, from 15 players.
 
 ## Results
 
@@ -47,12 +47,19 @@ data/processed/                  small derived tables
 src/racketimu/__init__.py        package marker and version
 src/racketimu/config.py          loads the YAML config and applies overrides
 src/racketimu/seed.py            seeds Python/NumPy/torch; picks the device (cpu by default)
+src/racketimu/io.py              loads the raw stroke files, converts units, attaches labels/scores, marks exclusions
+src/racketimu/datacard.py        builds docs/DATASET.md from the loaded data
 src/racketimu/assets.py          downloads a file and verifies its SHA-256 hash
 scripts/check_large_files.py     fails if any tracked file is over 5 MB
+scripts/inspect_dataset.py       writes docs/DATASET.md (`make inspect`)
 tests/test_config.py             tests for config loading and merging
 tests/test_seed.py               tests that seeding is reproducible and cpu is the default device
 tests/test_assets.py             tests for hash-checked downloads (local files, no network)
+tests/conftest.py                builds a tiny synthetic copy of the dataset's file layout
+tests/test_io.py                 tests for the loader: timestamps, labels, units, exclusion rules
+tests/test_datacard.py           tests for the dataset card builder
 docs/DESIGN.md                   every design decision, alternatives, and reasons
+docs/DATASET.md                  dataset card: counts, players, scores, sampling rate, every exclusion (generated)
 docs/figures/                    stroke plots and result figures (filled from D2 on)
 results/                         one folder per run + SUMMARY.md (filled from D3 on)
 ```
@@ -72,10 +79,11 @@ Download the dataset: open https://data.mendeley.com/datasets/b7bc9y232m/3, clic
 ```bash
 make test             # unit tests (synthetic data only)
 make lint             # ruff + large-file check
+make inspect          # D1: load the dataset and regenerate docs/DATASET.md
 make help             # list all steps
 ```
 
-Pipeline steps (`make inspect`, `make preprocess`, … `make report`, `make all`) exist as placeholders and exit with an error until their milestone is built.
+The remaining pipeline steps (`make preprocess`, … `make report`, `make all`) exist as placeholders and exit with an error until their milestone is built.
 
 ### How to reproduce (once the pipeline is built)
 
@@ -88,11 +96,15 @@ Pipeline steps (`make inspect`, `make preprocess`, … `make report`, `make all`
 
 2. **Switch to a public dataset:** replaced the self-recorded tennis plan with the Tabrizi et al. (2020) table tennis dataset and milestones D1 to D9. The Makefile placeholders were updated to match. The old plan's code was tagged `recording-plan-archive`, then removed: opencv-python, mediapipe, ahrs, the pose-model download, its config sections, and `data/sessions.yaml`.
 
-Later milestones (D1 inspection → D9 report) will be added here as they are completed.
+3. **D1, data inspection:** inspected every file before writing code and reported the findings: about 8 rows per second instead of the stated 100 Hz, 223 cleaned samples with no accelerometer or gyroscope data, 5 score criteria (not 3 coaches), and several label spellings. With the owner's decisions, wrote the loader (`io.py`) and the generated dataset card (`make inspect`).
+
+Later milestones (D2 preprocessing → D9 report) will be added here as they are completed.
 
 ## Key concepts
 
-- **Leave-one-player-out (LOPO) cross-validation:** train on all players but one, test on the one left out, repeat for each player. Strokes from one player look alike, so a random split would leak a player's style into training and overstate accuracy. LOPO measures what matters: performance on a new person.
+- **Leave-one-player-out (LOPO) cross-validation:** train on all players but one, test on the one left out, repeat for each player. Strokes from one player look alike, so a random split would leak a player's style into training and overstate accuracy. LOPO measures what matters: performance on a new person. Here it has 15 folds, because one player (P06) has no usable accelerometer or gyroscope data.
+- **Inspect before modelling:** the dataset description said 100 Hz and 1570 samples; the files showed about 8 rows per second, and 223 of those samples have no accelerometer or gyroscope signal. Building on the description alone would have produced misleading results.
+- **Pooled out-of-fold metrics:** predictions from every test fold are combined before computing the confusion matrix and macro-F1. Several players have only one or two stroke classes, so a per-player macro-F1 would be undefined or misleading.
 - **Reproducibility:** exact dependency pins, one config file for all parameters, and one seed function mean anyone can rerun the pipeline and get the same numbers.
 - **Config over constants:** thresholds live in `configs/default.yaml`, not in code, so experiments change a file, not the source, and each run saves the config it used.
 - **CPU for reported results:** GPU backends like MPS can give slightly different numbers run to run. Reported numbers use CPU so they can be reproduced exactly.
