@@ -25,11 +25,11 @@ _Empty until D9. Every number here will come from `results/SUMMARY.md`, which `m
 | scikit-learn | Random-forest baseline, metrics, and cross-validation helpers |
 | torch | Small 1D CNN and GRU models; runs on CPU for reported results (Apple `mps` is opt-in for quick local runs) |
 | matplotlib | Stroke plots, reliability diagrams, ablation figures |
-| pyyaml | Config and session metadata files |
+| pyyaml | Config file |
 | pyarrow | Lets pandas write `strokes.parquet` |
 | pytest, ruff | Tests and lint/format, run locally and in GitHub Actions |
 
-Left over from the original recording-based plan and not used by the current one: opencv-python, mediapipe, ahrs, ffmpeg, and the pose-model download (`make models`). See docs/DESIGN.md.
+Rotation math (D2) uses `scipy.spatial.transform`, so no separate orientation library is needed. The code and dependencies from the earlier self-recorded plan (video sync, MediaPipe pose) are kept under the git tag `recording-plan-archive`.
 
 ## File structure
 
@@ -42,7 +42,6 @@ Makefile                         one command per step (test, lint, and D1-D9 pla
 .gitignore                       keeps data, videos, checkpoints, secrets, and envs out of git
 .github/workflows/tests.yml      CI: lint and tests on every push
 configs/default.yaml             every threshold, window size, and seed
-data/sessions.yaml               metadata template from the recording plan (unused by the current plan)
 data/raw/, data/interim/         raw dataset (data/raw/tabrizi2020/) and intermediate files (git-ignored, local only)
 data/processed/                  small derived tables
 src/racketimu/__init__.py        package marker and version
@@ -50,8 +49,6 @@ src/racketimu/config.py          loads the YAML config and applies overrides
 src/racketimu/seed.py            seeds Python/NumPy/torch; picks the device (cpu by default)
 src/racketimu/assets.py          downloads a file and verifies its SHA-256 hash
 scripts/check_large_files.py     fails if any tracked file is over 5 MB
-scripts/download_pose_model.py   downloads the pose model named in the config (`make models`)
-models/                          downloaded model files (git-ignored, local only)
 tests/test_config.py             tests for config loading and merging
 tests/test_seed.py               tests that seeding is reproducible and cpu is the default device
 tests/test_assets.py             tests for hash-checked downloads (local files, no network)
@@ -70,13 +67,6 @@ make install          # same as: pip install -r requirements.txt
 
 Download the dataset: open https://data.mendeley.com/datasets/b7bc9y232m/3, click "Download All", and unzip it into `data/raw/tabrizi2020/`.
 
-Optional, only for the old recording plan:
-
-```bash
-conda install -c conda-forge ffmpeg    # into this env only, not system-wide
-make models           # downloads the pose model (~30 MB) and checks its SHA-256
-```
-
 ## How to run
 
 ```bash
@@ -94,9 +84,9 @@ Pipeline steps (`make inspect`, `make preprocess`, … `make report`, `make all`
 
 ## How it was built
 
-1. **M0, scaffold:** wrote the spec, created the conda env, installed the libraries and pinned the exact versions that resolved together, then added the config loader, seed utility, tests, Makefile, large-file guard, and CI. Then added ffmpeg to the env, a hash-checked download for the pose model, and made CPU the default device.
+1. **M0, scaffold:** wrote the spec, created the conda env, installed the libraries and pinned the exact versions that resolved together, then added the config loader, seed utility, tests, Makefile, large-file guard, and CI. Then made CPU the default device.
 
-2. **Switch to a public dataset:** replaced the self-recorded tennis plan with the Tabrizi et al. (2020) table tennis dataset and milestones D1 to D9. The Makefile placeholders were updated to match.
+2. **Switch to a public dataset:** replaced the self-recorded tennis plan with the Tabrizi et al. (2020) table tennis dataset and milestones D1 to D9. The Makefile placeholders were updated to match. The old plan's code was tagged `recording-plan-archive`, then removed: opencv-python, mediapipe, ahrs, the pose-model download, its config sections, and `data/sessions.yaml`.
 
 Later milestones (D1 inspection → D9 report) will be added here as they are completed.
 

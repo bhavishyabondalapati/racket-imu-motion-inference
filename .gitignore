@@ -9,8 +9,6 @@ data/interim/
 *.MOV
 *.avi
 *.mkv
-# Extracted audio used for sync
-*.wav
 
 # --- Model checkpoints ---
 # .gitignore cannot filter by size, so all checkpoint formats are ignored.
@@ -23,9 +21,8 @@ data/interim/
 *.onnx
 *.joblib
 *.pkl
-# Downloaded models (`make models`), never committed
+# Local model files, never committed
 models/
-*.task
 
 # --- Secrets ---
 .env

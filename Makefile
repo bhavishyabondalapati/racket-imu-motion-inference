@@ -2,12 +2,11 @@
 #   conda activate racket-imu-motion-inference
 PYTHON ?= python
 
-.PHONY: help install models test lint format inspect preprocess classify quality skill \
+.PHONY: help install test lint format inspect preprocess classify quality skill \
         ablation errors latency report all
 
 help:
 	@echo "make install     install pinned packages (editable) + dev tools"
-	@echo "make models      download the pose model and verify its SHA-256"
 	@echo "make test        unit tests (synthetic data only)"
 	@echo "make lint        ruff + large-file check"
 	@echo "make format      auto-format with ruff"
@@ -18,9 +17,6 @@ help:
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
-
-models:
-	$(PYTHON) scripts/download_pose_model.py
 
 test:
 	$(PYTHON) -m pytest

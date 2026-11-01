@@ -30,7 +30,7 @@ def test_yaml_file_is_layered_on_defaults(tmp_path: Path):
     extra.write_text(yaml.safe_dump({"imu": {"resample_hz": 200}}))
     cfg = load_config(extra)
     assert cfg["imu"]["resample_hz"] == 200
-    assert "sync" in cfg
+    assert "segment" in cfg
 
 
 def test_missing_file_raises(tmp_path: Path):
