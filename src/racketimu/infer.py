@@ -151,7 +151,10 @@ def _cli(argv: list[str] | None = None) -> int:
     if args.csv:
         stroke = io.to_physical(io.read_raw_table(Path(args.csv)), cfg["dataset"]["units"])
         items = [{"file": args.csv, **asdict(infer(stroke_to_window(stroke), fs, models))}]
-        note = None
+        note = (
+            "The models were trained on every usable sample of the Tabrizi et al. (2020) "
+            "dataset; if this file comes from that dataset, the prediction is in-sample."
+        )
     else:
         ds = io.load_dataset(PROJECT_ROOT / cfg["dataset"]["root"], cfg["dataset"])
         inc = ds.included()
