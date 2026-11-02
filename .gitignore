@@ -48,3 +48,8 @@ dist/
 .vscode/
 .idea/
 .DS_Store
+
+# Local dev notes (kept out of the repo)
+CLAUDE.md
+MORNING_SUMMARY.md
+.claude/
